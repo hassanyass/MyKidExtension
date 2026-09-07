@@ -1,6 +1,11 @@
 """
-MyKid Risk Package
+MyKid Risk Engine Package
 
-Risk assessment engine that converts detections into risk levels.
-To be implemented in Phase 4.
+Responsible for converting raw detections into contextual risk assessments.
 """
+
+from packages.risk.risk_engine import RiskEngine
+
+__all__ = [
+    "RiskEngine",
+]

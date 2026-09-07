@@ -33,6 +33,7 @@ class DetectionConfig:
     """Detection-related thresholds."""
     object_confidence_threshold: float = 0.5
     scene_risk_threshold: float = 0.6
+    max_allowed_object_area_ratio: float = 0.6
 
 
 @dataclass
