@@ -56,9 +56,16 @@ class ImageConfig:
 
 
 @dataclass
+class ObjectDetectionModelConfig:
+    """Object detection model settings."""
+    weights: str = "yolo11n.pt"
+
+
+@dataclass
 class ModelConfig:
     """Model settings."""
     path: str = "models/"
+    object_detection: ObjectDetectionModelConfig = field(default_factory=ObjectDetectionModelConfig)
 
 
 @dataclass
@@ -152,7 +159,11 @@ def _parse_yaml(data: dict) -> MyKidConfig:
 
     if "model" in data and isinstance(data["model"], dict):
         for key, value in data["model"].items():
-            if hasattr(config.model, key):
+            if key == "object_detection" and isinstance(value, dict):
+                for sub_key, sub_value in value.items():
+                    if hasattr(config.model.object_detection, sub_key):
+                        setattr(config.model.object_detection, sub_key, sub_value)
+            elif hasattr(config.model, key):
                 setattr(config.model, key, value)
 
     if "logging" in data and isinstance(data["logging"], dict):

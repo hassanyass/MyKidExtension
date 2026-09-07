@@ -1,6 +1,13 @@
 """
 MyKid Vision Package
 
-AI model abstraction and inference engine.
-To be implemented in Phase 3.
+AI model abstraction layer.
 """
+
+from packages.vision.base_model import VisionModel
+from packages.vision.yolo_model import YoloModel
+
+__all__ = [
+    "VisionModel",
+    "YoloModel",
+]
