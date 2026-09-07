@@ -76,41 +76,66 @@ class VideoPipeline:
             # For this MVP, let's output at the pipeline's resolution to save space, but
             # if we wanted original resolution, we'd upscale `protected_frame` before writing.
             
-            # Actually, `ImagePipeline` returns `final_image`.
-            # Let's peek at the first frame to see what resolution it gives us back.
-            success, first_frame = cap.read()
-            if not success:
-                raise VideoProcessingError("Failed to read the first frame of the video")
-                
-            # Process first frame to establish output dimensions
-            # We must convert BGR to RGB before passing to ImagePipeline, because ImagePipeline loader expects raw bytes/paths
-            # BUT if we pass a numpy array, `load_image` will handle it (assuming it's BGR if it's 3-channels).
-            # Wait, `load_image` currently assumes 3-channel numpy arrays are BGR and converts to RGB.
-            # Let's just pass the BGR frame directly to `process`.
-            protected_frame, _ = self.image_pipeline.process(first_frame)
+            # Setup writer will happen dynamically on the first processed frame
             
-            # The returned `protected_frame` is RGB. cv2.VideoWriter expects BGR.
-            out_bgr = cv2.cvtColor(protected_frame, cv2.COLOR_RGB2BGR)
-            out_h, out_w = out_bgr.shape[:2]
+
             
-            # Now we know our output dimensions
-            writer = create_writer(output_path, meta["fps"], out_w, out_h)
-            writer.write(out_bgr)
+            # 3. Process frames
+            frame_count = 0
             
-            # 3. Process the rest of the frames
-            frame_count = 1
+            # Calculate inference interval (e.g. 30 fps video / 10 fps inference = run AI every 3 frames)
+            inference_fps = self.config.video.inference_fps
+            video_fps = meta["fps"]
+            inference_interval = max(1, int(video_fps / inference_fps))
+            
+            from packages.video_processing.temporal_tracker import TemporalTracker
+            tracker = TemporalTracker(max_persistence_frames=self.config.video.temporal_persistence_frames)
+            
             while True:
                 success, frame = cap.read()
                 if not success:
                     break
                     
-                protected_frame, _ = self.image_pipeline.process(frame)
-                out_bgr = cv2.cvtColor(protected_frame, cv2.COLOR_RGB2BGR)
+                # The video processor (loader equivalent for video) needs RGB for consistency 
+                # before going to image_pipeline or tracker
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
+                # Check if it's an inference frame
+                if frame_count % inference_interval == 0:
+                    # Run full AI pipeline
+                    protected_rgb, analysis = self.image_pipeline.process(frame_rgb)
+                    # Initialize trackers with the raw frame (pre-blur) and the new analysis
+                    tracker.initialize(frame_rgb, analysis)
+                else:
+                    # Non-inference frame: Update tracking
+                    analysis = tracker.update(frame_rgb)
+                    # Apply protection using the updated tracked coordinates
+                    # The ProtectionEngine uses the same logic regardless of where the analysis came from
+                    # Need to preprocess frame first if we're calling protection directly, 
+                    # but wait! ImagePipeline handles preprocessing (resize). 
+                    # To keep it simple and consistent for MVP, we'll just run the protection engine manually here,
+                    # or better: we pass the image to preprocessor, then protect.
+                    # Since ImagePipeline.process() does Load -> Preprocess -> Vision -> Risk -> Protect,
+                    # we can't easily skip Vision+Risk using just `process()`.
+                    # Let's manually do the Preprocess -> Protect flow for tracking frames.
+                    from packages.image_processing.preprocessor import resize_preserve_aspect_ratio
+                    processed_frame = resize_preserve_aspect_ratio(frame_rgb, self.config.image.max_size)
+                    
+                    protected_rgb = self.image_pipeline.protection.protect(processed_frame, analysis)
+                    
+                # Write out
+                out_bgr = cv2.cvtColor(protected_rgb, cv2.COLOR_RGB2BGR)
+                
+                if writer is None:
+                    # Initialize writer on the very first frame to get exact dimensions
+                    out_h, out_w = out_bgr.shape[:2]
+                    writer = create_writer(output_path, meta["fps"], out_w, out_h)
+                    
                 writer.write(out_bgr)
                 frame_count += 1
                 
                 # Optional: logging progress
-                if frame_count % 30 == 0:
+                if frame_count % (int(video_fps) * 5) == 0:  # log every 5 seconds of video
                     logger.debug(f"Processed {frame_count}/{meta['frame_count']} frames")
                     
             elapsed = time.time() - start_time
