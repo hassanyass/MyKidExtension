@@ -1,6 +1,11 @@
 """
-MyKid Protection Package
+MyKid Protection Engine Package
 
-Visual protection engine (blur, pixelate, cover).
-To be implemented in Phase 5.
+Responsible for applying visual protection to images and frames.
 """
+
+from packages.protection.protection_engine import ProtectionEngine
+
+__all__ = [
+    "ProtectionEngine",
+]
