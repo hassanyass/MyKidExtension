@@ -44,16 +44,17 @@ class ProtectionConfig:
 
 
 @dataclass
-class VideoConfig:
-    """Video processing settings."""
-    inference_fps: int = 8
-    temporal_persistence_frames: int = 10
+class ImageConfig:
+    """Image processing configuration."""
+    max_size: int = 1920
 
 
 @dataclass
-class ImageConfig:
-    """Image processing settings."""
-    max_size: int = 1920
+class VideoConfig:
+    """Video processing configuration."""
+    max_video_resolution: int = 1920
+    inference_fps: int = 30  # placeholder for phase 8
+    temporal_persistence_frames: int = 10
 
 
 @dataclass
@@ -83,9 +84,9 @@ class MyKidConfig:
     """
     detection: DetectionConfig = field(default_factory=DetectionConfig)
     protection: ProtectionConfig = field(default_factory=ProtectionConfig)
-    video: VideoConfig = field(default_factory=VideoConfig)
-    image: ImageConfig = field(default_factory=ImageConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
+    image: ImageConfig = field(default_factory=ImageConfig)
+    video: VideoConfig = field(default_factory=VideoConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
     def __repr__(self) -> str:
