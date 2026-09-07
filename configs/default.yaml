@@ -24,10 +24,27 @@ image:
   # Maximum dimension (width or height) for preprocessing
   max_size: 1920
 
-# Model
+# Model configuration
 model:
-  # Path to model weights directory
+  # Base path to model weights directory
   path: "models/"
+
+  # Object detection model
+  object_detection:
+    name: "yolo11n"
+    weights: "yolo11n.pt"
+    input_size: 640
+    format: "pytorch"  # pytorch or onnx
+
+  # Safety-relevant labels by category
+  # These map model output labels to safety categories
+  safety_labels:
+    weapons:
+      - "knife"
+      - "scissors"
+    # Future: violence and graphic categories require scene classifier
+    # violence: []
+    # graphic: []
 
 # Logging
 logging:

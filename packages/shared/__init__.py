@@ -27,6 +27,16 @@ from packages.shared.errors import (
     ConfigurationError,
     ProtectionError,
 )
+from packages.shared.labels import (
+    SafetyCategory,
+    is_safety_relevant,
+    get_safety_category,
+    get_base_risk,
+    get_all_safety_labels,
+    get_coco_label,
+    SAFETY_CATEGORIES,
+    COCO_LABELS,
+)
 
 __all__ = [
     # Types
@@ -55,4 +65,13 @@ __all__ = [
     "InferenceError",
     "ConfigurationError",
     "ProtectionError",
+    # Labels
+    "SafetyCategory",
+    "is_safety_relevant",
+    "get_safety_category",
+    "get_base_risk",
+    "get_all_safety_labels",
+    "get_coco_label",
+    "SAFETY_CATEGORIES",
+    "COCO_LABELS",
 ]

@@ -1,0 +1,41 @@
+{
+  "model": {
+    "model_name": "yolo11n.pt",
+    "task": "detect",
+    "num_classes": 80,
+    "load_time_s": 2.613
+  },
+  "safety_classes": {
+    "knife": {
+      "index": 43,
+      "category": "weapons",
+      "base_risk": "medium"
+    },
+    "scissors": {
+      "index": 76,
+      "category": "weapons",
+      "base_risk": "medium"
+    }
+  },
+  "benchmark": {
+    "images_tested": 2,
+    "avg_inference_ms": 6991.0,
+    "confidence_threshold": 0.5
+  },
+  "image_results": [
+    {
+      "image": "test_safe.jpg",
+      "inference_time_ms": 13621.5,
+      "total_detections": 0,
+      "safety_detections": 0,
+      "detections": []
+    },
+    {
+      "image": "test_neutral.jpg",
+      "inference_time_ms": 360.6,
+      "total_detections": 0,
+      "safety_detections": 0,
+      "detections": []
+    }
+  ]
+}
