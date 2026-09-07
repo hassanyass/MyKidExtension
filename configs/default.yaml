@@ -1,0 +1,35 @@
+# Detection thresholds
+detection:
+  # Minimum confidence for object detections to be considered
+  object_confidence_threshold: 0.5
+  # Minimum scene-level risk score to trigger protection
+  scene_risk_threshold: 0.6
+
+# Protection settings
+protection:
+  # Padding ratio applied around detected bounding boxes (0.1 = 10%)
+  blur_padding: 0.1
+  # Protection mode: gaussian, pixelate, cover
+  mode: "gaussian"
+
+# Video processing
+video:
+  # Target AI inference frames per second (not every frame gets inference)
+  inference_fps: 8
+  # Number of frames to persist protection after last detection
+  temporal_persistence_frames: 10
+
+# Image processing
+image:
+  # Maximum dimension (width or height) for preprocessing
+  max_size: 1920
+
+# Model
+model:
+  # Path to model weights directory
+  path: "models/"
+
+# Logging
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"

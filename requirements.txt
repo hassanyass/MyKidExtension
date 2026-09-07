@@ -1,0 +1,4 @@
+# MyKid — Phase 1: Foundation
+pyyaml>=6.0
+pytest>=7.0
+pytest-cov>=4.0

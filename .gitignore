@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.whl
+.eggs/
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Models (large binary files)
+models/*.onnx
+models/*.pt
+models/*.pth
+models/*.tflite
+models/*.bin
+!models/.gitkeep
+
+# Test outputs
+test-output/
+*.mp4
+*.webm
+!test-data/**/*.mp4
+!test-data/**/*.webm
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Node (for browser extension)
+node_modules/
+package-lock.json
+
+# Distribution
+*.tar.gz
+*.zip
