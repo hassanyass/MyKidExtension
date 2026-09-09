@@ -136,15 +136,25 @@ class TestSceneRisk:
         sr = SceneRisk()
         assert sr.violence == 0.0
         assert sr.graphic == 0.0
+        assert sr.sexual == 0.0
 
     def test_max_score(self):
         sr = SceneRisk(violence=0.82, graphic=0.45)
         assert sr.max_score() == 0.82
 
+    def test_max_score_includes_sexual(self):
+        """
+        `sexual` was added in Phase B for the scene classifier's NSFW
+        output. If max_score() ignored it, sexual content would score 0
+        and never trigger protection — a silent safety failure.
+        """
+        sr = SceneRisk(violence=0.1, graphic=0.2, sexual=0.93)
+        assert sr.max_score() == 0.93
+
     def test_to_dict(self):
-        sr = SceneRisk(violence=0.5, graphic=0.3)
+        sr = SceneRisk(violence=0.5, graphic=0.3, sexual=0.2)
         d = sr.to_dict()
-        assert d == {"violence": 0.5, "graphic": 0.3}
+        assert d == {"violence": 0.5, "graphic": 0.3, "sexual": 0.2}
 
 
 # ---------------------------------------------------------------------------

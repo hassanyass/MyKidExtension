@@ -76,12 +76,31 @@ MYKID_VIDEO_INFERENCE_FPS=10
 
 | Phase | Status |
 |---|---|
-| Phase 1 — Foundation | 🔨 In Progress |
-| Phase 2 — Model Research | ⬜ Not Started |
-| Phase 3-6 — Image Pipeline | ⬜ Not Started |
-| Phase 7-9 — Video Pipeline | ⬜ Not Started |
-| Phase 10-12 — Browser Extension | ⬜ Not Started |
-| Phase 13-14 — Integration & Hardening | ⬜ Not Started |
+| Phase 1-8 — Python reference pipeline | ✅ Done |
+| Phase 10-11 — Browser extension (images + video) | ✅ Built — video not yet confirmed in-browser |
+| Harmful-content model (gore / sexual) | ✅ Done |
+| On/off toggle | ✅ Done |
+| Weapon detection (firearms) | ⏸️ Blocked — needs an evaluation set |
+| Phase 13-14 — Parity, privacy audit, limitations | ✅ Done |
+
+See [docs/11-remaining-implementation-plan.md](docs/11-remaining-implementation-plan.md) for the phase-by-phase breakdown, and
+[docs/12-privacy-and-limitations.md](docs/12-privacy-and-limitations.md) for the privacy audit and known limitations.
+
+**Honest status:** the extension detects gore and sexual content (scene-level,
+whole-image blur) plus knives and scissors (region blur), runs entirely
+on-device, and is controlled by a single on/off toggle. **Detection accuracy
+on harmful content has never been measured** — there is no harmful evaluation
+set in the project — so treat capability claims accordingly. See
+[docs/12](docs/12-privacy-and-limitations.md) §2.
+
+## Browser extension
+
+```bash
+python scripts/benchmark_safety_models.py   # downloads the safety classifier
+node apps/extension/scripts/setup.js        # stages models + wasm runtime
+```
+
+Then load `apps/extension/` unpacked at `chrome://extensions` (Developer mode on).
 
 ## Documentation
 

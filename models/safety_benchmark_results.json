@@ -1,0 +1,115 @@
+{
+  "generated": "2026-09-08T09:21:24",
+  "runs_per_fixture": 15,
+  "fixtures": [
+    "test-data/images/detection-samples/bus.jpg",
+    "test-data/images/detection-samples/zidane.jpg",
+    "test-data/images/safe/test_safe.jpg",
+    "test-data/images/safe/test_neutral.jpg"
+  ],
+  "caveat": "Latency, size and licence are measured. Accuracy on harmful content is NOT \u2014 no harmful evaluation set exists in this project. Safe fixtures only demonstrate the model runs and does not fire indiscriminately.",
+  "models": [
+    {
+      "name": "image-safety-classifier-xs",
+      "source": "OwenElliott/image-safety-classifier-xs",
+      "architecture": "swiftformer_xs (3.5M params)",
+      "license": "MIT (base SwiftFormer: Apache-2.0)",
+      "categories": [
+        "NSFL (gore/violence)",
+        "NSFW (sexual)",
+        "SFW"
+      ],
+      "output": "3-class probabilities \u2014 scene level, no bounding boxes",
+      "size_mb": 12.53,
+      "input_size": 224,
+      "load_ms": 87,
+      "min_inference_ms": 10.6,
+      "median_inference_ms": 12.8,
+      "mean_inference_ms": 13.3,
+      "fixtures": {
+        "test-data/images/detection-samples/bus.jpg": {
+          "predicted": "SFW",
+          "scores": {
+            "NSFL": 0.0353,
+            "NSFW": 0.0318,
+            "SFW": 0.933
+          }
+        },
+        "test-data/images/detection-samples/zidane.jpg": {
+          "predicted": "SFW",
+          "scores": {
+            "NSFL": 0.033,
+            "NSFW": 0.0304,
+            "SFW": 0.9367
+          }
+        },
+        "test-data/images/safe/test_safe.jpg": {
+          "predicted": "SFW",
+          "scores": {
+            "NSFL": 0.0288,
+            "NSFW": 0.0401,
+            "SFW": 0.9311
+          }
+        },
+        "test-data/images/safe/test_neutral.jpg": {
+          "predicted": "SFW",
+          "scores": {
+            "NSFL": 0.0309,
+            "NSFW": 0.0824,
+            "SFW": 0.8867
+          }
+        }
+      }
+    },
+    {
+      "name": "nudenet-320n",
+      "source": "notAI-tech/NudeNet",
+      "architecture": "yolov8n finetune @ 320x320",
+      "license": "MIT (package) \u2014 but the model derives from Ultralytics YOLOv8n, which is AGPL-3.0; treat the weights as AGPL-encumbered",
+      "categories": [
+        "18 anatomical classes, covered/exposed"
+      ],
+      "output": "bounding boxes \u2014 supports region-level blur",
+      "size_mb": 11.59,
+      "input_size": 320,
+      "load_ms": 112,
+      "min_inference_ms": 15.5,
+      "median_inference_ms": 25.3,
+      "mean_inference_ms": 50.8,
+      "fixtures": {
+        "test-data/images/detection-samples/bus.jpg": {
+          "detection_count": 0,
+          "classes": []
+        },
+        "test-data/images/detection-samples/zidane.jpg": {
+          "detection_count": 0,
+          "classes": []
+        },
+        "test-data/images/safe/test_safe.jpg": {
+          "detection_count": 0,
+          "classes": []
+        },
+        "test-data/images/safe/test_neutral.jpg": {
+          "detection_count": 0,
+          "classes": []
+        }
+      }
+    },
+    {
+      "name": "yolo11n (incumbent)",
+      "source": "Ultralytics YOLOv11n, COCO",
+      "license": "AGPL-3.0",
+      "categories": [
+        "80 COCO classes \u2014 only knife and scissors are safety-relevant"
+      ],
+      "output": "bounding boxes",
+      "size_mb": 10.14,
+      "input_size": 640,
+      "load_ms": 151,
+      "min_inference_ms": 173.1,
+      "median_inference_ms": 202.0,
+      "mean_inference_ms": 209.3,
+      "note": "Cannot detect blood, gore, violence or nudity \u2014 those are not COCO categories."
+    }
+  ]
+}

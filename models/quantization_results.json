@@ -1,0 +1,117 @@
+{
+  "generated": "2026-09-09T07:08:22",
+  "method": "dynamic INT8 (QUInt8 weights)",
+  "scene_classifier": {
+    "model": "image-safety-classifier-xs",
+    "fp32_mb": 12.53,
+    "int8_mb": 3.74,
+    "fp32_latency": {
+      "min_ms": 38.2,
+      "median_ms": 54.1
+    },
+    "int8_latency": {
+      "min_ms": 86.0,
+      "median_ms": 147.2
+    },
+    "max_abs_score_shift": 0.0329,
+    "any_verdict_changed": false,
+    "per_fixture": {
+      "bus.jpg": {
+        "fp32": {
+          "NSFL": 0.0353,
+          "NSFW": 0.0318,
+          "SFW": 0.933
+        },
+        "int8": {
+          "NSFL": 0.035,
+          "NSFW": 0.0302,
+          "SFW": 0.9347
+        },
+        "max_abs_shift": 0.0018,
+        "verdict_changed": false
+      },
+      "zidane.jpg": {
+        "fp32": {
+          "NSFL": 0.033,
+          "NSFW": 0.0304,
+          "SFW": 0.9367
+        },
+        "int8": {
+          "NSFL": 0.0342,
+          "NSFW": 0.0301,
+          "SFW": 0.9357
+        },
+        "max_abs_shift": 0.0012,
+        "verdict_changed": false
+      },
+      "test_safe.jpg": {
+        "fp32": {
+          "NSFL": 0.0288,
+          "NSFW": 0.0401,
+          "SFW": 0.9311
+        },
+        "int8": {
+          "NSFL": 0.0311,
+          "NSFW": 0.0582,
+          "SFW": 0.9107
+        },
+        "max_abs_shift": 0.0204,
+        "verdict_changed": false
+      },
+      "test_neutral.jpg": {
+        "fp32": {
+          "NSFL": 0.0309,
+          "NSFW": 0.0824,
+          "SFW": 0.8867
+        },
+        "int8": {
+          "NSFL": 0.0326,
+          "NSFW": 0.1136,
+          "SFW": 0.8538
+        },
+        "max_abs_shift": 0.0329,
+        "verdict_changed": false
+      }
+    }
+  },
+  "yolo": {
+    "model": "yolo11n",
+    "fp32_mb": 10.14,
+    "int8_mb": 2.74,
+    "fp32_latency": {
+      "min_ms": 172.4,
+      "median_ms": 239.8
+    },
+    "int8_latency": {
+      "min_ms": 316.5,
+      "median_ms": 394.9
+    },
+    "max_class_score_shift": 0.8408,
+    "peak_confidence_fp32": 0.908,
+    "peak_confidence_int8": 0.9054
+  },
+  "isolated_latency_ms": {
+    "note": "Measured one model per process, 25 runs after 5 warmup, intra_op_num_threads=2. The in-process figures above are inflated by contention and background load; these are the numbers the decision rests on.",
+    "image-safety-classifier-xs.fp32": {
+      "min": 12.6,
+      "median": 17.4
+    },
+    "image-safety-classifier-xs.int8": {
+      "min": 16.1,
+      "median": 17.3
+    },
+    "yolo11n.fp32": {
+      "min": 40.2,
+      "median": 46.5
+    },
+    "yolo11n.int8": {
+      "min": 61.3,
+      "median": 69.8
+    }
+  },
+  "decision": {
+    "adopt": false,
+    "reason": "INT8 dynamic quantization is 70-73% smaller but no faster for the classifier and ~50% slower for YOLO on this runtime, and shifts YOLO confidences across the 0.5 decision threshold (a person at 0.399 fp32 scored 0.575 int8). Models are bundled locally and loaded once per session, so size is far less valuable than latency here.",
+    "caveat": "Measured with native onnxruntime. The browser's wasm backend may have different INT8 kernel coverage, so this does not prove quantization is useless in-browser \u2014 only that there is no evidence for adopting it."
+  }
+}

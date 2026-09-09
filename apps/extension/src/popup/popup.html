@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MyKid</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>MyKid</h1>
+      <p class="subtitle">Visual Safety</p>
+    </header>
+
+    <section id="toggle-row">
+      <div>
+        <span id="toggle-state">Protection on</span>
+        <p id="toggle-hint" class="hint">Checking images and video as you browse.</p>
+      </div>
+      <button
+        id="power"
+        type="button"
+        class="switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Protection"
+      >
+        <span class="knob"></span>
+      </button>
+    </section>
+
+    <section id="categories">
+      <h2>What to blur</h2>
+      <label><input type="checkbox" data-category="gore" checked />
+        <span>Gore &amp; violence</span><em>blood, injury, violent scenes</em></label>
+      <label><input type="checkbox" data-category="sexual" checked />
+        <span>Sexual content</span><em>nudity, sexual imagery</em></label>
+      <label><input type="checkbox" data-category="weapons" checked />
+        <span>Weapons</span><em>knives and scissors only</em></label>
+      <p class="not-covered">
+        Not detected: firearms, drugs, self-harm, hate symbols, or anything
+        needing text or audio. See docs/12 for the full list.
+      </p>
+    </section>
+
+    <main id="status">
+      <p>Checking this page…</p>
+    </main>
+
+    <details id="advanced">
+      <summary>Advanced</summary>
+
+      <label for="harmful-label">Also treat as harmful (testing):</label>
+      <select id="harmful-label" multiple size="6">
+        <option value="person">person</option>
+        <option value="car">car</option>
+        <option value="dog">dog</option>
+        <option value="cat">cat</option>
+        <option value="bus">bus</option>
+        <option value="bottle">bottle</option>
+      </select>
+      <p class="hint">
+        Select any number (ctrl/cmd-click). Adds everyday objects on top of
+        the real categories above, so protection can be seen working on
+        ordinary pages. Applies immediately.
+      </p>
+
+      <button id="run-parity" type="button">Run detection test</button>
+      <div id="parity-output"></div>
+    </details>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

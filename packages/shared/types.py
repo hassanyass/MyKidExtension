@@ -108,16 +108,30 @@ class Detection:
 
 @dataclass
 class SceneRisk:
-    """Scene-level risk scores (not object-specific)."""
+    """
+    Scene-level risk scores (not object-specific).
+
+    These answer "what is happening in this image", as opposed to "what
+    objects are present" — the distinction in SKILL.md §9. Scene-level risk
+    triggers whole-frame protection, because there is no meaningful box to
+    draw around "this scene is violent".
+
+    `sexual` was added in Phase B alongside the safety classifier, whose
+    NSFW class had nowhere to go. `violence` is intentionally kept separate
+    from `graphic` even though the current classifier folds them together
+    into one NSFL score, so a dedicated violence model can be added later
+    without reshaping this type.
+    """
     violence: float = 0.0
     graphic: float = 0.0
+    sexual: float = 0.0
 
     def to_dict(self) -> Dict[str, float]:
         return asdict(self)
 
     def max_score(self) -> float:
         """Return the highest scene risk score."""
-        return max(self.violence, self.graphic)
+        return max(self.violence, self.graphic, self.sexual)
 
 
 @dataclass

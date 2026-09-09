@@ -67,6 +67,22 @@ coverage.xml
 node_modules/
 package-lock.json
 
+# Browser extension: vendored runtime + model copy.
+# Regenerate both via `node apps/extension/scripts/setup.js`.
+apps/extension/vendor/
+apps/extension/models/*.onnx
+!apps/extension/models/.gitkeep
+apps/extension/devtest/
+
+# Detection sample images (AGPL-3.0, bundled with the ultralytics package —
+# not ours to redistribute). Regenerate via:
+#   python scripts/fetch_detection_samples.py
+test-data/images/detection-samples/
+
+# Phase A candidate models — downloaded, not authored here.
+# Regenerate via: python scripts/benchmark_safety_models.py
+models/candidates/
+
 # Distribution
 *.tar.gz
 *.zip

@@ -2,10 +2,96 @@
 
 ## Decision Summary
 
+> **Revised 2026-09-08 (Phase A).** The original selection below was made to prove the pipeline, not to catch harm. Phase 2 optimised for "a model that produces detections in a browser"; the product needs "a model that recognises blood, gore, violence and nudity". YOLOv11n does neither of the latter — those are not COCO categories — so the primary detector has changed. Phase 2's reasoning is preserved below for the record.
+
 | Role | Selected Model | Rationale |
 |---|---|---|
-| **Object Detection** | YOLOv11n (COCO pretrained) | Smallest, fastest, browser-ready, detects knife/scissors |
-| **Scene Classification** | ViT violence classifier (deferred) | Scene-level risk signals, Python-only initially |
+| **Harm classification (primary)** | `image-safety-classifier-xs` | Actually covers the target categories: NSFL (gore/violence), NSFW (sexual). 12.5MB, ~13ms, MIT, ONNX with preprocessing baked in. |
+| **Object Detection (secondary)** | YOLOv11n (COCO pretrained) | Retained for knife/scissors *regions* — localised blur where the classifier can only blur the whole frame. Now the most expensive model for the least product value; gated rather than always-on. |
+| **Nudity regions (optional)** | NudeNet 320n | Boxes instead of full-frame for nudity. Strong capability, but AGPL-encumbered weights — see licensing below. |
+
+---
+
+## Phase A — Harmful-Content Model Evaluation (2026-09-08)
+
+### Why this phase happened
+
+The browser pipeline was proven end-to-end using `person` as a stand-in for "harmful", because COCO offers nothing better. That made the gap unavoidable: **the system worked perfectly and could not detect a single thing it exists to catch.** Blood, gore, violence and nudity are not COCO classes, and no threshold change reaches them.
+
+### Measured results
+
+Reproduce with `python scripts/benchmark_safety_models.py`; raw output in `models/safety_benchmark_results.json`.
+
+| Model | Size | Load | Median inference | Output | Licence |
+|---|---|---|---|---|---|
+| **image-safety-classifier-xs** | 12.53 MB | 87 ms | **12.8 ms** | 3 scene-level probabilities | MIT (base SwiftFormer Apache-2.0) |
+| NudeNet 320n | 11.59 MB | 112 ms | 25.3 ms | 18 anatomical classes, **with boxes** | MIT package, AGPL-derived weights |
+| YOLOv11n *(incumbent)* | 10.14 MB | 151 ms | 202.0 ms | 80 COCO classes, with boxes | AGPL-3.0 |
+
+**On the latency figures:** these are native `onnxruntime` on CPU with `intra_op_num_threads=2`, all three sessions alive in one process. Measured in isolation, the classifier runs ~11ms and YOLOv11n ~42ms — so the *absolute* numbers move a lot with load and thread contention (an early unpinned run reported 253ms for an 11ms model). The **ordering is stable and is the finding**: the classifier is several times cheaper than YOLO while covering far more of what matters. Browser figures will be higher again — measured YOLOv11n in-browser is ~230ms against ~42ms native, roughly a 5× WASM penalty.
+
+### Behaviour on safe fixtures
+
+| Fixture | Predicted | NSFL | NSFW | SFW |
+|---|---|---|---|---|
+| bus.jpg | SFW | 0.035 | 0.032 | 0.933 |
+| zidane.jpg | SFW | 0.033 | 0.030 | 0.937 |
+| test_safe.jpg | SFW | 0.029 | 0.040 | 0.931 |
+| test_neutral.jpg | SFW | 0.031 | 0.082 | 0.887 |
+
+**What this does and does not establish.** It shows the model runs, and that it doesn't fire indiscriminately on ordinary images — a real false-positive risk for a tool that would otherwise blur everything and get switched off. It says **nothing** about whether it catches gore, because we have no harmful evaluation set. The vendor reports 97.76% accuracy on a proprietary 320k-image dataset; that is self-reported, on their own data, and is not independent evidence. **Detection accuracy remains unmeasured** (SKILL.md rule 10) and stays that way until Phase 9c resolves test-data sourcing.
+
+### Integration notes (verified, not assumed)
+
+- **Input:** `image`, shape `[batch, 3, 224, 224]`, float32.
+- **Feed raw 0-255 RGB — do not normalise.** Preprocessing is baked into the ONNX graph. Verified empirically: pre-normalising pushes NSFW on a photo of a bus from 0.032 to 0.18, i.e. it double-normalises and degrades output.
+- **Output:** `probabilities`, shape `[batch, 3]`, ordered **`[NSFL, NSFW, SFW]`** — from the model's own `pretrained_cfg.label_names`, not guessed.
+
+### Mapping onto the existing risk engine
+
+`SceneRisk` currently carries `violence` and `graphic` (`types.py:110`), and the risk engine escalates to `BLUR_FRAME` when either reaches `scene_risk_threshold` (0.6). The classifier's outputs map onto this almost directly:
+
+| Classifier output | SceneRisk field | Note |
+|---|---|---|
+| NSFL (gore/violence) | `graphic` | Direct fit. |
+| NSFW (sexual) | — | **No field exists.** Needs a `sexual` field adding to `SceneRisk` and `max_score()`, in both the Python and JS engines. |
+
+The `violence` field stays unused for now: the classifier folds violence into NSFL rather than scoring it separately. Keeping the field distinct leaves room for a dedicated violence model later without reshaping the type.
+
+### Recommended architecture: cheap gate first
+
+Running every model on every image is the wrong shape — YOLO alone is ~230ms in-browser, and images are analysed continuously while browsing. Instead:
+
+```text
+image ──► safety classifier (~13ms native)  ──► NSFL / NSFW / SFW
+             │                                        │
+             │ confidently SFW                        │ above threshold
+             ▼                                        ▼
+        stop — no further work                  BLUR_FRAME (done — no object
+                                                detection needed)
+             │
+             │ (optional) object-level detail wanted
+             ▼
+        YOLOv11n ──► knife / scissors regions ──► BLUR_REGION
+```
+
+This inverts the current pipeline. The expensive model runs least, the cheap model runs always, and the cheap one covers more of the product's actual purpose.
+
+### Licensing consequence, worth deciding deliberately
+
+The classifier is **MIT** over an **Apache-2.0** base. YOLOv11n is **AGPL-3.0**, and NudeNet's weights derive from Ultralytics YOLOv8n so are best treated as AGPL-encumbered too.
+
+That means a stack of *just the safety classifier* is **fully permissive** — which would resolve the AGPL question that has been open since Phase 2, at the cost of losing knife/scissors region blur. Since the classifier already flags gore and sexual content full-frame, and knives are a minor part of the harm surface, dropping AGPL entirely is a genuinely viable option rather than a sacrifice. This is a product/legal call, not an engineering one.
+
+### Not selected, and why
+
+- **`jaranohaal/vit-base-violence-detection`** (~350MB) — 28× the classifier for one category the classifier already covers. Viable in the Python reference pipeline; not in a browser.
+- **CLIP zero-shot** against prompts like "blood", "injury" — flexible and needs no training, but the image encoder is ~25-40MB quantized and far slower than 13ms. Worth revisiting only if the classifier proves weak on gore specifically.
+- **Fine-tuned weapon YOLO** (gun, rifle) — still deferred, still requires dataset curation and a training run. Phase C.
+
+---
+
+## Phase 2 evaluation (original, retained for the record)
 
 ---
 

@@ -163,7 +163,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Deliverables** | Directory structure, `shared/` package (types, config, logger, errors), base test setup, README |
 | **Dependencies** | None |
 | **Verification** | All imports resolve, tests pass, config loads correctly |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -176,7 +176,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Candidates** | YOLOv8/v11, YOLO-NAS, ONNX models, safety-specific classifiers |
 | **Criteria** | Accuracy, speed, size, browser compatibility, license, supported classes |
 | **Verification** | Model loads and produces detections on test images |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -189,7 +189,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Input** | Image file (JPG, PNG, WebP) |
 | **Output** | Structured detection JSON (labels, confidence, bounding boxes) |
 | **Verification** | Detections on safe and harmful test images are accurate and structured |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -202,7 +202,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Input** | Detection results |
 | **Output** | Risk level (LOW / MEDIUM / HIGH) + recommended action |
 | **Verification** | Knife-in-cooking → LOW, knife-in-violence → HIGH |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -215,7 +215,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Input** | Image + protected regions + protection type |
 | **Output** | Protected image |
 | **Verification** | Correct region blurred with padding, full-frame blur works |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -228,7 +228,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Input** | Any supported image |
 | **Output** | Protected image + detection metadata |
 | **Verification** | Full test suite passes, Streamlit demo shows before/after |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -241,7 +241,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Input** | Video file (MP4, WebM) |
 | **Output** | Protected video file |
 | **Verification** | Output video is playable, harmful frames are protected |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -254,7 +254,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Input** | Sequence of frame detections |
 | **Output** | Stable protection decisions across frames |
 | **Verification** | No visible flickering, smooth protection transitions |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Done |
 
 ---
 
@@ -266,7 +266,7 @@ Each phase below will be expanded into a **custom implementation plan** before w
 | **Deliverables** | Performance benchmarks, optimized inference frequency, memory profiling |
 | **Metrics** | FPS, latency, memory usage, CPU/GPU utilization |
 | **Verification** | Before/after benchmarks show measurable improvement |
-| **Status** | ⬜ Not Started |
+| **Status** | ⬜ Parked — deprioritized behind the browser extension track (see [docs/11](11-remaining-implementation-plan.md)) |
 
 ---
 
@@ -376,17 +376,17 @@ For **every phase**, the following protocol applies:
 
 | Phase | Status | Notes |
 |---|---|---|
-| Phase 1 — Foundation | ⬜ Not Started | **Next up** |
-| Phase 2 — Model Research | ⬜ Not Started | |
-| Phase 3 — Image Detection | ⬜ Not Started | |
-| Phase 4 — Risk Engine | ⬜ Not Started | |
-| Phase 5 — Protection Engine | ⬜ Not Started | |
-| Phase 6 — Image Pipeline | ⬜ Not Started | |
-| Phase 7 — Video Engine | ⬜ Not Started | |
-| Phase 8 — Temporal | ⬜ Not Started | |
-| Phase 9 — Video Perf | ⬜ Not Started | |
-| Phase 10 — Browser Images | ⬜ Not Started | |
-| Phase 11 — Browser Video | ⬜ Not Started | |
+| Phase 1 — Foundation | ✅ Done | |
+| Phase 2 — Model Research | ✅ Done | |
+| Phase 3 — Image Detection | ✅ Done | |
+| Phase 4 — Risk Engine | ✅ Done | |
+| Phase 5 — Protection Engine | ✅ Done | |
+| Phase 6 — Image Pipeline | ✅ Done | Streamlit demo deliverable still outstanding — tracked as Phase 9b in [docs/11](11-remaining-implementation-plan.md) |
+| Phase 7 — Video Engine | ✅ Done | |
+| Phase 8 — Temporal | ✅ Done | |
+| Phase 9 — Video Perf | ⬜ Parked | Deprioritized in favor of the browser extension track — see [docs/11](11-remaining-implementation-plan.md) |
+| Phase 10 — Browser Images | 🔨 In Progress | Split into sub-chunks 10a/10b/10c — see [docs/11](11-remaining-implementation-plan.md). **Next up: 10a** |
+| Phase 11 — Browser Video | ⬜ Not Started | Split into sub-chunks 11a-11d — see [docs/11](11-remaining-implementation-plan.md) |
 | Phase 12 — Browser AI | ⬜ Not Started | |
 | Phase 13 — Integration | ⬜ Not Started | |
 | Phase 14 — Hardening | ⬜ Not Started | |

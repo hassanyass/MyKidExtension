@@ -53,7 +53,7 @@ class ImageConfig:
 class VideoConfig:
     """Video processing configuration."""
     max_video_resolution: int = 1920
-    inference_fps: int = 30  # placeholder for phase 8
+    inference_fps: int = 8
     temporal_persistence_frames: int = 10
 
 
