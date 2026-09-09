@@ -535,6 +535,7 @@ var MyKidVideoProtection = (function () {
   }
 
   return {
+    LAYER_CLASS,
     watch,
     unwatch,
     clearAll,

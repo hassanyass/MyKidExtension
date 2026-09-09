@@ -111,9 +111,26 @@
     return image.currentSrc || image.src || "";
   }
 
+  /**
+   * Our own protection overlays are <img> elements, so without excluding
+   * them they get discovered, analysed, and protected in turn — each
+   * protection spawning another overlay. The 1px stub used in the test
+   * harness fell under the size floor and hid this, but a real protected
+   * render (up to 800px) would feed straight back in.
+   */
+  function isOwnElement(element) {
+    return Boolean(
+      element.closest &&
+        element.closest(
+          `#mykid-protection-layer, .${MyKidVideoProtection.LAYER_CLASS}`
+        )
+    );
+  }
+
   function countVisualElements() {
     return {
-      images: document.images.length,
+      images: Array.prototype.filter.call(document.images, (i) => !isOwnElement(i))
+        .length,
       videos: document.querySelectorAll("video").length,
     };
   }
@@ -373,7 +390,9 @@
         ? [root]
         : (root.querySelectorAll?.("img") ?? []);
 
-    for (const image of images) observe(image);
+    for (const image of images) {
+      if (!isOwnElement(image)) observe(image);
+    }
 
     scanVideos(root);
   }

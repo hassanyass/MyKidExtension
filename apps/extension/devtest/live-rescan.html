@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fuzzy — live rescan harness</title>
+    <style>
+      body { font: 14px system-ui; margin: 0; padding: 16px; background: #fafafa; }
+      h1 { font-size: 16px; margin: 0 0 4px; }
+      p.lede { margin: 0 0 12px; color: #666; font-size: 12px; max-width: 60ch; }
+      #controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #ccc;
+               background: #fff; cursor: pointer; }
+      button.on { background: #dcfce7; border-color: #4ade80; }
+      #readout { font-family: ui-monospace, monospace; font-size: 12px; background: #fff;
+                 border: 1px solid #ddd; border-radius: 8px; padding: 10px; white-space: pre;
+                 margin-bottom: 12px; }
+      .grid { display: grid; grid-template-columns: repeat(4, 150px); gap: 10px; }
+      .grid img { width: 150px; height: 110px; object-fit: cover; border-radius: 6px;
+                  border: 1px solid #ddd; display: block; }
+    </style>
+  </head>
+  <body>
+    <h1>Fuzzy — live rescan harness</h1>
+    <p class="lede">
+      Runs the real content script with stubbed extension APIs. The stub reports
+      a "person" in every image, so toggling the practice label should blur or
+      unblur everything <em>without reloading</em>. This exists to test that
+      config changes apply live, which is hard to judge by eye on a real site.
+    </p>
+
+    <div id="controls">
+      <button id="toggle-person" type="button">practice: person = OFF</button>
+      <button id="toggle-power" class="on" type="button">Fuzzy = ON</button>
+      <button id="add-image" type="button">add an image (tests MutationObserver)</button>
+    </div>
+
+    <div id="readout">waiting…</div>
+
+    <div class="grid" id="grid"></div>
+
+    <script>
+      // ---- Stubbed extension APIs -----------------------------------
+      const store = { mykidConfig: { enabled: true, categories: { gore: true, weapons: true } } };
+      const listeners = [];
+
+      // A 1x1 transparent PNG stands in for the "protected" render, so the
+      // harness needs no model — we are testing the wiring, not detection.
+      const FAKE_PROTECTED =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+      function harmfulLabels() {
+        const cfg = store.mykidConfig;
+        const out = cfg.categories?.weapons ? ["knife", "scissors"] : [];
+        const extra = cfg.debug?.treatLabelAsHarmful;
+        if (Array.isArray(extra)) out.push(...extra);
+        else if (extra) out.push(extra);
+        return out;
+      }
+
+      window.chrome = {
+        storage: {
+          local: {
+            get: (key, cb) => {
+              const result = { mykidConfig: JSON.parse(JSON.stringify(store.mykidConfig)) };
+              return cb ? cb(result) : Promise.resolve(result);
+            },
+            set: (obj, cb) => {
+              Object.assign(store, JSON.parse(JSON.stringify(obj)));
+              return cb ? cb() : Promise.resolve();
+            },
+          },
+        },
+        runtime: {
+          lastError: null,
+          onMessage: { addListener: (fn) => listeners.push(fn) },
+          // Pretends every image contains a person.
+          sendMessage: async (msg) => {
+            if (msg.type !== "MYKID_ANALYSE_IMAGE") return { ok: false };
+            const harmful = harmfulLabels();
+            const flagged = harmful.includes("person");
+            return {
+              ok: true,
+              analysis: {
+                detections: [],
+                overallRisk: flagged ? "medium" : "low",
+                action: flagged ? "blur_region" : "allow",
+                protectionRegions: flagged
+                  ? [{ bbox: { x: 10, y: 10, width: 80, height: 60 }, mode: "gaussian" }]
+                  : [],
+              },
+              protectedImageUrl: flagged ? FAKE_PROTECTED : null,
+              detectedLabels: ["person"],
+              harmfulLabels: harmful,
+              activeCategories: store.mykidConfig.categories,
+              sceneScores: { gore: 0.02, sexual: 0.01, safe: 0.97 },
+              sceneFlagged: false,
+              objectDetectionRan: true,
+              timings: { sceneMs: 1, inferMs: 1, renderMs: 1 },
+            };
+          },
+        },
+      };
+
+      function send(type) {
+        return new Promise((resolve) => {
+          let replied = false;
+          for (const fn of listeners) fn({ type }, {}, (r) => { replied = true; resolve(r); });
+          if (!replied) resolve(null);
+        });
+      }
+
+      // ---- Test images ----------------------------------------------
+      const grid = document.getElementById("grid");
+      function makeImage(index) {
+        const img = document.createElement("img");
+        // Inline SVG so nothing is fetched over the network.
+        img.src =
+          "data:image/svg+xml;utf8," +
+          encodeURIComponent(
+            `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='220'>
+               <rect width='300' height='220' fill='hsl(${index * 47 % 360},70%,75%)'/>
+               <text x='150' y='120' font-size='40' text-anchor='middle'>${index}</text>
+             </svg>`
+          );
+        grid.appendChild(img);
+      }
+      for (let i = 1; i <= 8; i++) makeImage(i);
+
+      // ---- Controls --------------------------------------------------
+      const personButton = document.getElementById("toggle-person");
+      const powerButton = document.getElementById("toggle-power");
+
+      personButton.addEventListener("click", async () => {
+        const on = !(store.mykidConfig.debug?.treatLabelAsHarmful || []).includes("person");
+        store.mykidConfig.debug = { treatLabelAsHarmful: on ? ["person"] : null };
+        personButton.textContent = "practice: person = " + (on ? "ON" : "OFF");
+        personButton.classList.toggle("on", on);
+        await send("MYKID_RESCAN");
+      });
+
+      powerButton.addEventListener("click", async () => {
+        const on = !store.mykidConfig.enabled;
+        store.mykidConfig.enabled = on;
+        powerButton.textContent = "Fuzzy = " + (on ? "ON" : "OFF");
+        powerButton.classList.toggle("on", on);
+        await send("MYKID_RESCAN");
+      });
+
+      document.getElementById("add-image").addEventListener("click", () => {
+        makeImage(grid.children.length + 1);
+      });
+
+      // ---- Readout ---------------------------------------------------
+      setInterval(async () => {
+        const counts = await send("MYKID_GET_COUNTS");
+        const overlays = document.querySelectorAll(".mykid-protection-overlay").length;
+        document.getElementById("readout").textContent =
+          "overlays on page : " + overlays + "\n" +
+          "images           : " + (counts ? counts.images : "?") + "\n" +
+          "analysed         : " + (counts ? counts.stats.processed : "?") + "\n" +
+          "protected        : " + (counts ? counts.stats.protected : "?") + "\n" +
+          "pending          : " + (counts ? counts.stats.pending : "?") + "\n" +
+          "hiding           : " + (counts && counts.stats.harmfulLabels
+            ? counts.stats.harmfulLabels.join(", ") : "-");
+      }, 400);
+    </script>
+
+    <script src="../src/shared/config.js"></script>
+    <script src="../src/inference/risk.js"></script>
+    <script src="../src/content/protection.js"></script>
+    <script src="../src/content/video-protection.js"></script>
+    <script src="../src/content/content-script.js"></script>
+  </body>
+</html>

@@ -72,7 +72,11 @@ package-lock.json
 apps/extension/vendor/
 apps/extension/models/*.onnx
 !apps/extension/models/.gitkeep
-apps/extension/devtest/
+# Sample images copied into devtest are AGPL and regenerable; the test
+# harness alongside them is ours and is kept.
+apps/extension/devtest/*.jpg
+apps/extension/devtest/*.png
+apps/extension/devtest/*.inlined.html
 
 # Detection sample images (AGPL-3.0, bundled with the ultralytics package —
 # not ours to redistribute). Regenerate via:
