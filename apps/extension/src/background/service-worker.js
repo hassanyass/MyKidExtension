@@ -122,6 +122,32 @@ async function isAnalysisAllowed(messageType) {
   return enabled;
 }
 
+/**
+ * Send to the offscreen document, tolerating it not being ready yet.
+ *
+ * `createDocument()` resolving does not guarantee the document's scripts
+ * have run and registered their message listener, so an immediate send can
+ * fail with "Receiving end does not exist". Chrome can also close an idle
+ * offscreen document, leaving a stale assumption that one exists.
+ *
+ * Both are transient and both used to surface as a permanent analysis
+ * failure for that image. Retrying costs a few hundred milliseconds once;
+ * not retrying left images silently unprotected.
+ */
+async function sendToOffscreen(relayed, attempts = 3) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await chrome.runtime.sendMessage(relayed);
+    } catch (err) {
+      const notListening = String(err).includes("Receiving end does not exist");
+      if (!notListening || attempt >= attempts) throw err;
+
+      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      await ensureOffscreenDocument(); // it may have been closed entirely
+    }
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const buildRelayed = message && RELAYED_MESSAGES[message.type];
   if (!buildRelayed) return;
@@ -134,7 +160,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
       await ensureOffscreenDocument();
       const relayed = await buildRelayed(message);
-      sendResponse(await chrome.runtime.sendMessage(relayed));
+      sendResponse(await sendToOffscreen(relayed));
     } catch (err) {
       sendResponse({ ok: false, error: err && err.message ? err.message : String(err) });
     }

@@ -118,6 +118,9 @@ function renderTech(stats, video) {
     ["Could not read", String(stats.failed)],
   ];
 
+  if (stats.retried) rows.push(["Retried", String(stats.retried)]);
+  if (stats.lastError) rows.push(["Last error", stats.lastError]);
+
   if (stats.sceneChecked > 0) {
     rows.push([
       "Highest scores seen",
@@ -161,6 +164,11 @@ function renderStatus(counts) {
       : `<p class="message">No pictures or videos on this page.</p>`;
   } else if (pending > 0) {
     message = `<p class="message">Still looking…</p>`;
+  } else if (processed === 0 && stats.failed > 0) {
+    // Everything failed: this is a broken install, not a clean page, and
+    // saying "all clear" here would be actively misleading.
+    message = `<p class="message warn">Fuzzy could not check this page.
+      Open Grown-up settings for the reason.</p>`;
   } else {
     message = `<p class="message happy">All clear — nothing needed hiding.</p>`;
   }

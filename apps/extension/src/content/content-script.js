@@ -35,6 +35,16 @@
     FAILED: "failed",
   };
 
+  // How many times to retry an image whose analysis failed.
+  //
+  // Failures here are usually transient: the service worker sleeps, or the
+  // offscreen document is still building its model sessions when the first
+  // requests arrive ("Receiving end does not exist"). Treating those as
+  // final left images permanently unanalysed — and therefore permanently
+  // unprotected — until something rebuilt the observers, which is why
+  // toggling off and on appeared to "fix" the extension.
+  const MAX_ANALYSIS_ATTEMPTS = 4;
+
   // Per-image record, keyed by element. Holds the state plus the src we
   // analysed, so a lazy-loader swapping in a new image re-triggers work.
   const imageRecords = new WeakMap();
@@ -44,6 +54,11 @@
     skipped: 0,
     processed: 0,
     failed: 0,
+    retried: 0,
+    // Why the last analysis failed. A bare failure count cannot
+    // distinguish "one flaky image" from "the model file is missing and
+    // nothing will ever work" — and the second needs a very different fix.
+    lastError: null,
     protected: 0,
     queued: 0,
     // What the model actually saw, label -> count. Without this, a page
@@ -70,6 +85,8 @@
     stats.skipped = 0;
     stats.processed = 0;
     stats.failed = 0;
+    stats.retried = 0;
+    stats.lastError = null;
     stats.protected = 0;
     stats.queued = 0;
     stats.labelCounts = {};
@@ -137,7 +154,7 @@
     }
 
     imageRecords.set(image, { state: State.QUEUED, src: currentSrc(image) });
-    queue.push(image);
+    queue.push({ image, attempt: 1 });
     stats.queued++;
     pumpQueue();
   }
@@ -147,15 +164,58 @@
       activeWorkers < config.browser.maxConcurrentInferences &&
       queue.length > 0
     ) {
-      const image = queue.shift();
+      const { image, attempt } = queue.shift();
       activeWorkers++;
-      processImage(image)
-        .catch((err) => console.error("[Bubble] image processing failed:", err))
+      processImage(image, attempt)
+        .catch((err) => console.error("[Fuzzy] image processing failed:", err))
         .finally(() => {
           activeWorkers--;
           pumpQueue();
         });
     }
+  }
+
+  /**
+   * An analysis attempt failed. Retry it a few times before giving up.
+   *
+   * Failing open is the right behaviour for an image we genuinely cannot
+   * inspect (SKILL.md §28), but "cannot inspect" and "did not manage to
+   * inspect yet" are different things. Most failures here are transient —
+   * the service worker sleeping, or the offscreen document still building
+   * its two model sessions when the first requests land. Treating those as
+   * final left images unanalysed for the life of the page, i.e. silently
+   * unprotected, with no signal that anything had gone wrong.
+   */
+  function recordFailure(image, src, attempt, reason) {
+    if (attempt < MAX_ANALYSIS_ATTEMPTS) {
+      imageRecords.set(image, { state: State.FAILED, src, attempt });
+      stats.retried++;
+
+      // Backs off, because the usual cause is something still warming up.
+      const delayMs = 350 * 2 ** (attempt - 1);
+      setTimeout(() => {
+        if (!image.isConnected || !config || !config.enabled) return;
+
+        // Left alone if anything has moved on since: the image was
+        // re-queued elsewhere, already analysed, or its src changed.
+        const record = imageRecords.get(image);
+        if (!record || record.state !== State.FAILED || record.src !== currentSrc(image)) {
+          return;
+        }
+
+        queue.push({ image, attempt: attempt + 1 });
+        pumpQueue();
+      }, delayMs);
+      return;
+    }
+
+    imageRecords.set(image, { state: State.FAILED, src, attempt });
+    stats.failed++;
+    if (reason) stats.lastError = String(reason).slice(0, 160);
+    console.warn(
+      `[Fuzzy] gave up on an image after ${attempt} attempts` +
+        (reason ? ` (${reason})` : "")
+    );
   }
 
   /**
@@ -166,11 +226,11 @@
    * canvas tainting: reading a cross-origin image's pixels in page
    * context is blocked, the extension fetching that URL itself is not.
    */
-  async function processImage(image) {
+  async function processImage(image, attempt = 1) {
     const src = currentSrc(image);
     if (!src || !image.isConnected) return;
 
-    imageRecords.set(image, { state: State.PROCESSING, src });
+    imageRecords.set(image, { state: State.PROCESSING, src, attempt });
 
     let response;
     try {
@@ -178,23 +238,19 @@
         type: "MYKID_ANALYSE_IMAGE",
         imageUrl: src,
       });
-    } catch {
-      // The service worker can be torn down mid-flight; that's a failed
-      // analysis, not a reason to break the page.
-      imageRecords.set(image, { state: State.FAILED, src });
-      stats.failed++;
+    } catch (err) {
+      // The service worker can be torn down mid-flight, or the offscreen
+      // document may not be listening yet.
+      recordFailure(image, src, attempt, String(err));
       return;
     }
 
     if (!response || !response.ok) {
-      // Fail open: an image we couldn't inspect is left untouched
-      // (SKILL.md §28 — must not crash, must have a defined fallback).
-      imageRecords.set(image, { state: State.FAILED, src });
-      stats.failed++;
+      recordFailure(image, src, attempt, response && response.error);
       return;
     }
 
-    imageRecords.set(image, { state: State.PROCESSED, src });
+    imageRecords.set(image, { state: State.PROCESSED, src, attempt });
     stats.processed++;
 
     for (const label of response.detectedLabels ?? []) {
