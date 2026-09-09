@@ -2,69 +2,150 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>MyKid</title>
+    <title>Fuzzy</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
+    <!-- Icon sprite. Inline SVG rather than emoji so icons render the same
+         on every platform and can inherit colour when a category is off. -->
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-drop" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2.7s6 6.4 6 10.4a6 6 0 0 1-12 0C6 9.1 12 2.7 12 2.7Z" />
+      </symbol>
+      <symbol id="i-blade" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 15 13 3l3 3-8 9Z" />
+        <path d="m8 15 3 3-5 3-2-2Z" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3 5 6v6c0 4.3 3 7.6 7 9 4-1.4 7-4.7 7-9V6Z" />
+      </symbol>
+      <symbol id="i-person" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="7" r="3.4" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+      </symbol>
+      <symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 14h18M5 14l1.6-5a2 2 0 0 1 1.9-1.4h7a2 2 0 0 1 1.9 1.4L19 14v4h-3v-2H8v2H5Z" />
+      </symbol>
+      <symbol id="i-dog" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 6v6a7 7 0 0 0 14 0V6l-3 2h-8Z" /><path d="M10 13h.01M14 13h.01" />
+      </symbol>
+      <symbol id="i-cat" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 9 4 4l4 2.5h8L20 4l-1 5v3a7 7 0 0 1-14 0Z" />
+        <path d="M10 12h.01M14 12h.01" />
+      </symbol>
+      <symbol id="i-bus" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="4" width="16" height="13" rx="2.5" />
+        <path d="M4 11h16M7 21v-2M17 21v-2M8 14h.01M16 14h.01" />
+      </symbol>
+      <symbol id="i-bottle" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2h4v3.5l2 2.8V21H8V8.3l2-2.8Z" /><path d="M8 13h8" />
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9.2" /><path d="M12 11v5M12 7.6h.01" />
+      </symbol>
+    </svg>
+
     <header>
-      <h1>MyKid</h1>
-      <p class="subtitle">Visual Safety</p>
+      <!-- Fuzzy: a round, friendly creature. Mascot rather than an abstract
+           mark, so a child recognises what the extension is at a glance. -->
+      <svg id="mascot" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="34" r="24" fill="#58cc02" />
+        <circle cx="32" cy="34" r="24" fill="none" stroke="#46a302" stroke-width="3" />
+        <path d="M14 18c1.5-5 5-7 7-6.5S24 16 22 20Z" fill="#58cc02" stroke="#46a302" stroke-width="2.4" stroke-linejoin="round" />
+        <path d="M50 18c-1.5-5-5-7-7-6.5S40 16 42 20Z" fill="#58cc02" stroke="#46a302" stroke-width="2.4" stroke-linejoin="round" />
+        <ellipse cx="32" cy="40" rx="14" ry="11" fill="#f0fce4" />
+        <circle cx="25" cy="30" r="5.4" fill="#fff" />
+        <circle cx="39" cy="30" r="5.4" fill="#fff" />
+        <circle cx="26" cy="31" r="2.6" fill="#3c3c3c" />
+        <circle cx="40" cy="31" r="2.6" fill="#3c3c3c" />
+        <circle cx="27" cy="30" r="0.9" fill="#fff" />
+        <circle cx="41" cy="30" r="0.9" fill="#fff" />
+        <path d="M29 41q3 3 6 0" fill="none" stroke="#3c3c3c" stroke-width="2.2" stroke-linecap="round" />
+      </svg>
+      <div>
+        <h1>Fuzzy</h1>
+        <p class="subtitle">Makes the scary stuff fuzzy</p>
+      </div>
     </header>
 
     <section id="toggle-row">
-      <div>
-        <span id="toggle-state">Protection on</span>
-        <p id="toggle-hint" class="hint">Checking images and video as you browse.</p>
+      <div class="toggle-text">
+        <span id="toggle-state">Fuzzy is on</span>
+        <p id="toggle-hint">Watching pictures and videos for you.</p>
       </div>
       <button
         id="power"
         type="button"
-        class="switch"
+        class="switch on"
         role="switch"
         aria-checked="true"
-        aria-label="Protection"
+        aria-label="Turn Fuzzy on or off"
       >
         <span class="knob"></span>
       </button>
     </section>
 
     <section id="categories">
-      <h2>What to blur</h2>
-      <label><input type="checkbox" data-category="gore" checked />
-        <span>Gore &amp; violence</span><em>blood, injury, violent scenes</em></label>
-      <label><input type="checkbox" data-category="sexual" checked />
-        <span>Sexual content</span><em>nudity, sexual imagery</em></label>
-      <label><input type="checkbox" data-category="weapons" checked />
-        <span>Weapons</span><em>knives and scissors only</em></label>
-      <p class="not-covered">
-        Not detected: firearms, drugs, self-harm, hate symbols, or anything
-        needing text or audio. See docs/12 for the full list.
+      <h2>Fuzzy hides</h2>
+
+      <label class="chip">
+        <input type="checkbox" data-category="gore" checked />
+        <span class="chip-face">
+          <svg class="chip-icon" aria-hidden="true"><use href="#i-drop" /></svg>
+          <span class="chip-label">Scary &amp; gory things<em>blood, injuries, fighting</em></span>
+        </span>
+      </label>
+
+      <label class="chip">
+        <input type="checkbox" data-category="weapons" checked />
+        <span class="chip-face">
+          <svg class="chip-icon" aria-hidden="true"><use href="#i-blade" /></svg>
+          <span class="chip-label">Sharp things<em>knives and scissors</em></span>
+        </span>
+      </label>
+
+      <p class="note">
+        <svg aria-hidden="true"><use href="#i-shield" /></svg>
+        <span>
+          Fuzzy always hides grown-up pictures too — that one stays on. It
+          can’t spot everything yet: toy-like weapons, unkind words, or
+          anything in sound.
+        </span>
       </p>
     </section>
 
     <main id="status">
-      <p>Checking this page…</p>
+      <p class="resting">Having a look at this page…</p>
     </main>
 
     <details id="advanced">
-      <summary>Advanced</summary>
+      <summary>Grown-up settings</summary>
 
-      <label for="harmful-label">Also treat as harmful (testing):</label>
-      <select id="harmful-label" multiple size="6">
-        <option value="person">person</option>
-        <option value="car">car</option>
-        <option value="dog">dog</option>
-        <option value="cat">cat</option>
-        <option value="bus">bus</option>
-        <option value="bottle">bottle</option>
-      </select>
       <p class="hint">
-        Select any number (ctrl/cmd-click). Adds everyday objects on top of
-        the real categories above, so protection can be seen working on
-        ordinary pages. Applies immediately.
+        Practice mode — pick everyday things for Fuzzy to hide, so you can
+        watch it work. Tick as many as you like.
       </p>
+      <div id="practice-labels" class="practice-grid">
+        <label><input type="checkbox" value="person" /><svg><use href="#i-person" /></svg><span>person</span></label>
+        <label><input type="checkbox" value="car" /><svg><use href="#i-car" /></svg><span>car</span></label>
+        <label><input type="checkbox" value="dog" /><svg><use href="#i-dog" /></svg><span>dog</span></label>
+        <label><input type="checkbox" value="cat" /><svg><use href="#i-cat" /></svg><span>cat</span></label>
+        <label><input type="checkbox" value="bus" /><svg><use href="#i-bus" /></svg><span>bus</span></label>
+        <label><input type="checkbox" value="bottle" /><svg><use href="#i-bottle" /></svg><span>bottle</span></label>
+      </div>
 
-      <button id="run-parity" type="button">Run detection test</button>
+      <div id="tech"></div>
+
+      <button id="run-parity" type="button">Run a quick self-check</button>
       <div id="parity-output"></div>
     </details>
 

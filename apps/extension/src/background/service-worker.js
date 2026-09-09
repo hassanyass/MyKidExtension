@@ -44,8 +44,8 @@ async function updateBadge() {
   await chrome.action.setBadgeBackgroundColor({ color: "#b3541e" });
   await chrome.action.setTitle({
     title: enabled
-      ? "MyKid — protection on"
-      : "MyKid — protection OFF, nothing is being checked",
+      ? "Fuzzy — on, watching out for you"
+      : "Fuzzy — OFF, nothing is being checked",
   });
 }
 
@@ -56,7 +56,7 @@ async function currentConfig() {
 }
 
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log(`[MyKid] service worker installed (reason: ${details.reason})`);
+  console.log(`[Fuzzy] service worker installed (reason: ${details.reason})`);
   updateBadge();
 });
 
@@ -89,7 +89,7 @@ async function currentOverrides() {
     const stored = await chrome.storage.local.get("mykidConfig");
     return stored.mykidConfig ?? {};
   } catch (err) {
-    console.warn("[MyKid] could not read config overrides:", err);
+    console.warn("[Fuzzy] could not read config overrides:", err);
     return {};
   }
 }
@@ -129,7 +129,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     try {
       if (!(await isAnalysisAllowed(message.type))) {
-        sendResponse({ ok: false, error: "MyKid is switched off" });
+        sendResponse({ ok: false, error: "Fuzzy is switched off" });
         return;
       }
       await ensureOffscreenDocument();

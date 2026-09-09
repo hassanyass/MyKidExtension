@@ -77,7 +77,7 @@ MYKID_VIDEO_INFERENCE_FPS=10
 | Phase | Status |
 |---|---|
 | Phase 1-8 — Python reference pipeline | ✅ Done |
-| Phase 10-11 — Browser extension (images + video) | ✅ Built — video not yet confirmed in-browser |
+| Fuzzy extension (images + video) | ✅ Built — video not yet confirmed in-browser |
 | Harmful-content model (gore / sexual) | ✅ Done |
 | On/off toggle | ✅ Done |
 | Weapon detection (firearms) | ⏸️ Blocked — needs an evaluation set |
@@ -86,7 +86,10 @@ MYKID_VIDEO_INFERENCE_FPS=10
 See [docs/11-remaining-implementation-plan.md](docs/11-remaining-implementation-plan.md) for the phase-by-phase breakdown, and
 [docs/12-privacy-and-limitations.md](docs/12-privacy-and-limitations.md) for the privacy audit and known limitations.
 
-**Honest status:** the extension detects gore and sexual content (scene-level,
+The extension ships as **Fuzzy** (`MyKid` remains the repository and
+Python-package name).
+
+**Honest status:** Fuzzy detects gore and sexual content (scene-level,
 whole-image blur) plus knives and scissors (region blur), runs entirely
 on-device, and is controlled by a single on/off toggle. **Detection accuracy
 on harmful content has never been measured** — there is no harmful evaluation

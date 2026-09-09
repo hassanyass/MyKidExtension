@@ -1,20 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "MyKid — Visual Safety",
-  "version": "0.2.0",
-  "description": "Reduces exposure to harmful visual content while browsing. In-browser AI detection is being wired in (Phase 10b) — protection is not active on real pages yet.",
+  "name": "Fuzzy \u2014 Safer Browsing for Kids",
+  "version": "0.3.0",
+  "description": "Fuzzy blurs scary, gory and grown-up pictures and videos while your child browses. Everything runs on your device \u2014 nothing is uploaded.",
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   },
-  "permissions": ["offscreen", "storage"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "offscreen",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "assets/icons/icon16.png",
       "48": "assets/icons/icon48.png",
       "128": "assets/icons/icon128.png"
-    }
+    },
+    "default_title": "Fuzzy"
   },
   "icons": {
     "16": "assets/icons/icon16.png",
@@ -26,7 +32,9 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "<all_urls>"
+      ],
       "js": [
         "src/shared/config.js",
         "src/inference/risk.js",

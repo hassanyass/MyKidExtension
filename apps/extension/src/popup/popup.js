@@ -1,139 +1,26 @@
 /**
- * MyKid — Popup script (Phase 10a counts + Phase 10b-i self-test status)
+ * Fuzzy — popup.
  *
- * Asks the content script of the active tab for its element counts and
- * the detection-engine self-test result, and renders both. This is
- * purely a verification aid — the real UI (per-detection status,
- * protection toggle, etc.) comes later.
+ * Two audiences share this panel: an adult setting it up, and a child who
+ * may well open it out of curiosity. So the top half is plain language and
+ * big controls, and everything technical (counts, scores, self-check) is
+ * folded into "Grown-up settings".
+ *
+ * Sexual-content detection is deliberately not offered as a switch. It
+ * stays permanently on — it is not a protection worth offering to disable,
+ * and the label does not belong in a panel a child may read.
  */
 const statusEl = document.getElementById("status");
-
-/**
- * The standalone engine self-test used to run on every page load and be
- * reported here. It's gone: the analysis path itself now proves the engine
- * works (and reports timings), so a separate self-test only added a model
- * load and a full inference every time the popup opened. "Run detection
- * test" below covers the same ground on demand.
- */
-
-function renderLabelCounts(labelCounts) {
-  const entries = Object.entries(labelCounts ?? {}).sort((a, b) => b[1] - a[1]);
-  if (entries.length === 0) return "";
-
-  const top = entries
-    .slice(0, 6)
-    .map(([label, count]) => `${label}&nbsp;${count}`)
-    .join(" · ");
-
-  return `<p class="count-line detected">Detected: ${top}</p>`;
-}
-
-function renderSceneStats(stats) {
-  if (!stats || stats.sceneChecked === 0) return "";
-
-  // Peak scores make the harm detector's behaviour legible: near-zero
-  // across a whole page means it ran and saw nothing alarming, which is a
-  // different situation from it not running at all.
-  return `
-    <p class="count-line">Harm scan: <strong>${stats.sceneChecked}</strong> checked
-      · <strong>${stats.sceneFlagged}</strong> flagged</p>
-    <p class="count-line detected">Peak scores — gore ${stats.peakGore.toFixed(3)}
-      · sexual ${stats.peakSexual.toFixed(3)}</p>
-  `;
-}
-
-function renderStats(stats) {
-  if (!stats) return "";
-
-  // When nothing was protected, say why rather than showing a bare zero —
-  // "analysed nothing" and "analysed plenty, matched nothing" need
-  // completely different fixes.
-  let diagnosis = "";
-  if (stats.protected === 0) {
-    if (stats.processed === 0 && stats.pending === 0) {
-      diagnosis = `<p class="count-line warning">No images analysed yet
-        (scroll, or they may all be below the size threshold).</p>`;
-    } else if (Object.keys(stats.labelCounts ?? {}).length === 0) {
-      diagnosis = `<p class="count-line warning">Analysed, but the model
-        found no objects it recognises.</p>`;
-    } else {
-      const harmful = stats.harmfulLabels
-        ? stats.harmfulLabels.join(", ")
-        : "unknown";
-      diagnosis = `<p class="count-line">Objects found, but none match the
-        harmful set in force: <strong>${harmful}</strong></p>`;
-    }
-  }
-
-  return `
-    <p class="count-line">Analysed: <strong>${stats.processed}</strong>
-      · skipped ${stats.skipped} · failed ${stats.failed}
-      · pending ${stats.pending ?? 0}</p>
-    <p class="count-line">Protected: <strong>${stats.protected}</strong>
-      (${stats.protectionsActive} overlay(s) active)</p>
-    ${renderSceneStats(stats)}
-    ${renderLabelCounts(stats.labelCounts)}
-    ${diagnosis}
-  `;
-}
-
-function renderVideoStats(video) {
-  if (!video || video.watching === 0) return "";
-  return `
-    <p class="count-line">Video: watching <strong>${video.watching}</strong>
-      · ${video.sampled} frame(s) sampled
-      · ${video.protectedNow} protected now</p>
-    ${
-      video.sourceChanges > 0
-        ? `<p class="count-line">${video.sourceChanges} source change(s) handled</p>`
-        : ""
-    }
-    ${
-      video.unreadable > 0
-        ? `<p class="count-line warning">${video.unreadable} video(s) unreadable
-             (cross-origin without CORS)</p>`
-        : ""
-    }
-  `;
-}
-
-function render(counts) {
-  renderToggle(counts.enabled);
-  if (counts.stats?.activeCategories) {
-    renderCategories(counts.stats.activeCategories);
-  }
-
-  // Showing analysis stats while switched off would imply work is
-  // happening that isn't.
-  if (!counts.enabled) {
-    statusEl.innerHTML = `
-      <p class="count-line">Found on this page: ${counts.images} image(s),
-        ${counts.videos} video(s).</p>
-      <p class="count-line warning">Not being checked — protection is off.</p>
-    `;
-    return;
-  }
-
-  statusEl.innerHTML = `
-    <p class="count-line">Images found: <strong>${counts.images}</strong></p>
-    <p class="count-line">Videos found: <strong>${counts.videos}</strong></p>
-    ${renderStats(counts.stats)}
-    ${renderVideoStats(counts.video)}
-  `;
-}
-
-// --- Power toggle: the product's main control -----------------------
 const powerButton = document.getElementById("power");
+const toggleRow = document.getElementById("toggle-row");
 const toggleState = document.getElementById("toggle-state");
 const toggleHint = document.getElementById("toggle-hint");
+const techEl = document.getElementById("tech");
 
 /**
- * Push the config change to every open tab, not just the active one.
- *
- * A safety toggle that only applies to the tab you happened to be looking
- * at would leave other tabs unprotected while reporting itself as on.
- * Tabs without a content script (chrome:// pages, or ones not reloaded
- * since install) simply error and are skipped.
+ * Push config changes to every open tab, not just the active one — a
+ * protection switch that applied only to the tab in front would leave the
+ * others unguarded while reporting itself as on.
  */
 function broadcastRescan() {
   chrome.tabs.query({}, (tabs) => {
@@ -146,152 +33,182 @@ function broadcastRescan() {
   });
 }
 
-function renderToggle(enabled) {
-  powerButton.setAttribute("aria-checked", String(enabled));
-  powerButton.classList.toggle("on", enabled);
-  toggleState.textContent = enabled ? "Protection on" : "Protection off";
-  toggleState.classList.toggle("off", !enabled);
-  toggleHint.textContent = enabled
-    ? "Checking images and video as you browse."
-    : "Nothing is being checked or blurred.";
-}
-
-function setEnabled(enabled) {
+function saveConfig(mutate) {
   chrome.storage.local.get("mykidConfig", (stored) => {
     const overrides = stored?.mykidConfig ?? {};
-    overrides.enabled = enabled;
+    mutate(overrides);
     chrome.storage.local.set({ mykidConfig: overrides }, () => {
-      renderToggle(enabled);
       broadcastRescan();
-      // Re-read counts so the panel reflects the new state right away.
-      setTimeout(refreshStatus, 150);
+      setTimeout(refreshStatus, 200);
     });
   });
 }
 
+// --- Power ----------------------------------------------------------
+
+function renderToggle(enabled) {
+  powerButton.setAttribute("aria-checked", String(enabled));
+  powerButton.classList.toggle("on", enabled);
+  toggleRow.classList.toggle("off", !enabled);
+  toggleState.textContent = enabled ? "Fuzzy is on" : "Fuzzy is off";
+  toggleHint.textContent = enabled
+    ? "Keeping an eye on pictures and videos."
+    : "Nothing is being checked right now.";
+}
+
 powerButton.addEventListener("click", () => {
-  setEnabled(powerButton.getAttribute("aria-checked") !== "true");
+  const next = powerButton.getAttribute("aria-checked") !== "true";
+  renderToggle(next); // respond instantly; storage catches up
+  saveConfig((overrides) => {
+    overrides.enabled = next;
+  });
 });
 
-// --- Harm categories ------------------------------------------------
+// --- Categories -----------------------------------------------------
+
 const categoryInputs = document.querySelectorAll("#categories input[data-category]");
 
 function renderCategories(categories) {
   for (const input of categoryInputs) {
-    // Default on: absent means "not yet configured", which for a safety
-    // tool should mean covered, not skipped.
+    // Absent means "not configured yet", which for a safety tool should
+    // mean covered rather than skipped.
     input.checked = categories?.[input.dataset.category] ?? true;
   }
 }
 
 for (const input of categoryInputs) {
   input.addEventListener("change", () => {
-    chrome.storage.local.get("mykidConfig", (stored) => {
-      const overrides = stored?.mykidConfig ?? {};
+    saveConfig((overrides) => {
       overrides.categories = {
         ...(overrides.categories ?? {}),
         [input.dataset.category]: input.checked,
       };
-      chrome.storage.local.set({ mykidConfig: overrides }, () => {
-        broadcastRescan();
-        setTimeout(refreshStatus, 150);
-      });
     });
   });
 }
 
-// --- Debug labels (multi-select) ------------------------------------
-const harmfulLabelSelect = document.getElementById("harmful-label");
+// --- Practice mode (any number of labels at once) --------------------
 
-function selectedLabels() {
-  return Array.from(harmfulLabelSelect.selectedOptions)
-    .map((option) => option.value)
-    .filter(Boolean);
+const practiceInputs = document.querySelectorAll("#practice-labels input");
+
+for (const input of practiceInputs) {
+  input.addEventListener("change", () => {
+    const labels = Array.from(practiceInputs)
+      .filter((box) => box.checked)
+      .map((box) => box.value);
+
+    saveConfig((overrides) => {
+      overrides.debug = { treatLabelAsHarmful: labels.length ? labels : null };
+    });
+  });
 }
 
-chrome.storage.local.get("mykidConfig", (stored) => {
-  const config = stored?.mykidConfig ?? {};
+// --- Status ----------------------------------------------------------
 
-  // Accepts the older single-string form as well as the array, so a
-  // setting saved by a previous build still applies.
-  const saved = config.debug?.treatLabelAsHarmful;
-  const labels = Array.isArray(saved) ? saved : saved ? [saved] : [];
-  for (const option of harmfulLabelSelect.options) {
-    option.selected = labels.includes(option.value);
+function renderTech(stats, video) {
+  if (!stats) {
+    techEl.innerHTML = "";
+    return;
   }
 
-  renderToggle(config.enabled ?? true);
-  renderCategories(config.categories);
-});
+  const rows = [
+    ["Checked", String(stats.processed)],
+    ["Skipped (too small)", String(stats.skipped)],
+    ["Waiting", String(stats.pending ?? 0)],
+    ["Could not read", String(stats.failed)],
+  ];
 
-harmfulLabelSelect.addEventListener("change", () => {
-  const labels = selectedLabels();
-  chrome.storage.local.get("mykidConfig", (stored) => {
-    const overrides = stored?.mykidConfig ?? {};
-    overrides.debug = { treatLabelAsHarmful: labels.length ? labels : null };
-    chrome.storage.local.set({ mykidConfig: overrides }, () => {
-      broadcastRescan();
-      setTimeout(refreshStatus, 150);
-    });
-  });
-});
+  if (stats.sceneChecked > 0) {
+    rows.push([
+      "Highest scores seen",
+      `gore ${stats.peakGore.toFixed(2)} · grown-up ${stats.peakSexual.toFixed(2)}`,
+    ]);
+  }
+  if (video && video.watching) {
+    rows.push(["Videos watched", `${video.watching} (${video.sampled} frames)`]);
+  }
+  if (stats.harmfulLabels && stats.harmfulLabels.length) {
+    rows.push(["Hiding", stats.harmfulLabels.join(", ")]);
+  }
 
-function renderUnavailable() {
+  techEl.innerHTML = rows
+    .map(([label, value]) => `<div class="row"><span>${label}</span><b>${value}</b></div>`)
+    .join("");
+}
+
+/**
+ * Plain-language status.
+ *
+ * The message explains a zero rather than leaving it ambiguous: "nothing
+ * found" and "nothing checked yet" look identical as a bare 0 and mean
+ * very different things.
+ */
+function renderStatus(counts) {
+  const stats = counts.stats || {};
+  const found = counts.images + counts.videos;
+  const processed = stats.processed || 0;
+  const pending = stats.pending || 0;
+  const hidden = stats.protected || 0;
+
+  let message;
+  if (hidden > 0) {
+    message = `<p class="message happy">Fuzzy hid ${hidden} thing${
+      hidden === 1 ? "" : "s"
+    } on this page.</p>`;
+  } else if (processed === 0 && pending === 0) {
+    message = found
+      ? `<p class="message">Nothing checked here yet — try scrolling.</p>`
+      : `<p class="message">No pictures or videos on this page.</p>`;
+  } else if (pending > 0) {
+    message = `<p class="message">Still looking…</p>`;
+  } else {
+    message = `<p class="message happy">All clear — nothing needed hiding.</p>`;
+  }
+
   statusEl.innerHTML = `
-    <p class="warning">MyKid isn't active on this page.</p>
-    <p class="count-line">(Restricted pages like chrome:// or the Web Store can't be inspected.)</p>
+    <div class="tally">
+      <div class="tally-card"><b>${found}</b><span>on page</span></div>
+      <div class="tally-card"><b>${processed}</b><span>checked</span></div>
+      <div class="tally-card hidden-count"><b>${hidden}</b><span>hidden</span></div>
+    </div>
+    ${message}
   `;
 }
 
-// --- Phase 10b-ii: detection parity test ---------------------------
-//
-// Runs the browser detection pipeline over a fixed sample image, so its
-// output can be diffed against `python scripts/parity_reference.py` on the
-// same file. Same model, same letterboxing, same decoding — the numbers
-// should line up.
-const parityButton = document.getElementById("run-parity");
-const parityOutput = document.getElementById("parity-output");
+function renderOff(counts) {
+  statusEl.innerHTML = `
+    <div class="tally">
+      <div class="tally-card"><b>${counts.images + counts.videos}</b><span>on page</span></div>
+      <div class="tally-card"><b>—</b><span>checked</span></div>
+      <div class="tally-card hidden-count"><b>—</b><span>hidden</span></div>
+    </div>
+    <p class="message warn">Fuzzy is off, so nothing is being checked.</p>
+  `;
+}
 
-parityButton.addEventListener("click", () => {
-  parityButton.disabled = true;
-  parityOutput.textContent = "Running…";
+function renderUnavailable() {
+  statusEl.innerHTML = `
+    <p class="message">Fuzzy cannot look at this page.</p>
+    <p class="message">Try a normal website — browser pages are off limits.</p>
+  `;
+  techEl.innerHTML = "";
+}
 
-  chrome.runtime.sendMessage({ type: "MYKID_PARITY_TEST" }, (result) => {
-    parityButton.disabled = false;
+function render(counts) {
+  renderToggle(counts.enabled);
+  if (counts.stats && counts.stats.activeCategories) {
+    renderCategories(counts.stats.activeCategories);
+  }
 
-    if (chrome.runtime.lastError || !result) {
-      parityOutput.innerHTML = `<p class="warning">${
-        chrome.runtime.lastError?.message ?? "no response"
-      }</p>`;
-      return;
-    }
-    if (!result.ok) {
-      parityOutput.innerHTML = `<p class="warning">${result.error}</p>`;
-      return;
-    }
+  if (!counts.enabled) {
+    renderOff(counts);
+    renderTech(null);
+    return;
+  }
 
-    const rows = result.detections
-      .map(
-        (d) =>
-          `<tr><td>${d.label}</td><td>${d.confidence.toFixed(4)}</td>` +
-          `<td>${d.bbox.x.toFixed(1)}, ${d.bbox.y.toFixed(1)}, ` +
-          `${d.bbox.width.toFixed(1)}, ${d.bbox.height.toFixed(1)}</td></tr>`
-      )
-      .join("");
-
-    parityOutput.innerHTML = `
-      <p class="count-line">${result.detections.length} detection(s) ·
-        pre ${result.timings.preprocessMs}ms ·
-        infer ${result.timings.inferMs}ms ·
-        decode ${result.timings.decodeMs}ms</p>
-      <table>
-        <tr><th>label</th><th>conf</th><th>x, y, w, h</th></tr>
-        ${rows}
-      </table>
-    `;
-    console.log("[MyKid] parity test result:", result);
-  });
-});
+  renderStatus(counts);
+  renderTech(counts.stats, counts.video);
+}
 
 function refreshStatus() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -300,11 +217,8 @@ function refreshStatus() {
       renderUnavailable();
       return;
     }
-
     chrome.tabs.sendMessage(tab.id, { type: "MYKID_GET_COUNTS" }, (counts) => {
       if (chrome.runtime.lastError || !counts) {
-        // No content script on this tab (restricted page, or the tab hasn't
-        // reloaded since the extension was installed/updated).
         renderUnavailable();
         return;
       }
@@ -312,5 +226,53 @@ function refreshStatus() {
     });
   });
 }
+
+// --- Self-check -------------------------------------------------------
+
+const parityButton = document.getElementById("run-parity");
+const parityOutput = document.getElementById("parity-output");
+
+parityButton.addEventListener("click", () => {
+  parityButton.disabled = true;
+  parityOutput.textContent = "Checking…";
+
+  chrome.runtime.sendMessage({ type: "MYKID_PARITY_TEST" }, (result) => {
+    parityButton.disabled = false;
+
+    if (chrome.runtime.lastError || !result || !result.ok) {
+      const reason =
+        (result && result.error) ||
+        (chrome.runtime.lastError && chrome.runtime.lastError.message) ||
+        "no response";
+      parityOutput.innerHTML = `<p class="message warn">${reason}</p>`;
+      return;
+    }
+
+    const rows = result.detections
+      .map((d) => `<tr><td>${d.label}</td><td>${d.confidence.toFixed(3)}</td></tr>`)
+      .join("");
+
+    parityOutput.innerHTML = `
+      <div class="row"><span>Found</span><b>${result.detections.length} object(s)</b></div>
+      <div class="row"><span>Speed</span><b>${result.timings.inferMs}ms</b></div>
+      <table><tr><th>what</th><th>sure?</th></tr>${rows}</table>
+    `;
+  });
+});
+
+// --- Boot -------------------------------------------------------------
+
+chrome.storage.local.get("mykidConfig", (stored) => {
+  const config = stored?.mykidConfig ?? {};
+
+  renderToggle(config.enabled ?? true);
+  renderCategories(config.categories);
+
+  // Accepts the older single-string form as well as a list, so settings
+  // saved by a previous build still apply.
+  const saved = config.debug && config.debug.treatLabelAsHarmful;
+  const labels = Array.isArray(saved) ? saved : saved ? [saved] : [];
+  for (const input of practiceInputs) input.checked = labels.includes(input.value);
+});
 
 refreshStatus();

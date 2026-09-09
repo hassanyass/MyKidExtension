@@ -1,9 +1,20 @@
-# MyKid — Chrome Extension (Manifest V3)
+# Fuzzy — Chrome Extension (Manifest V3)
 
-**Status: Phase 10b-i — detection-engine plumbing proof.** The extension loads
-onnxruntime-web and the YOLOv11n model in a Web Worker and runs one
-self-test inference. It does **not** yet look at real images on the page —
-that's 10b-ii/10b-iii.
+**Fuzzy** is the shipped name of the extension. `MyKid` remains the
+repository and Python-package name.
+
+Fuzzy blurs scary, gory and grown-up pictures and videos as a child
+browses. Everything runs on the device — no image, URL or page content
+ever leaves the browser (audited: `docs/12-privacy-and-limitations.md`).
+
+**What it detects:** gore/violence and sexual content at the scene level
+(whole-image blur), plus knives and scissors as regions. **What it does
+not:** firearms, drugs, self-harm, hate symbols, or anything needing text
+or audio.
+
+**Detection accuracy on harmful content is unmeasured** — there is no
+harmful evaluation set in this project. Safe fixtures only establish that
+it doesn't fire indiscriminately.
 
 ## First-time setup
 

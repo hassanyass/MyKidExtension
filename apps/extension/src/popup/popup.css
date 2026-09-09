@@ -1,239 +1,387 @@
-body {
-  width: 280px;
-  margin: 0;
-  padding: 12px 14px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1a1a2e;
-  background: #fafbff;
+/* Fuzzy — playful, chunky, high-contrast.
+ *
+ * Deliberately Duolingo-shaped: thick borders, solid drop-edges on
+ * pressable things, bold uppercase labels, saturated colour. Not
+ * decoration — controls that look physically pressable get found and
+ * used, which matters when half the audience is a child and the other
+ * half is a parent who opens this once and never again.
+ *
+ * Icons are inline SVG, never emoji: emoji render differently on every
+ * platform, get colour-shifted, and can't inherit state (dimmed when a
+ * category is off). A stroked icon does all three predictably.
+ */
+
+:root {
+  --green: #58cc02;
+  --green-dark: #46a302;
+  --green-pale: #f0fce4;
+  --blue: #1cb0f6;
+  --blue-dark: #1899d6;
+  --blue-pale: #ddf4ff;
+  --yellow: #ffc800;
+  --yellow-pale: #fff8e1;
+  --yellow-ink: #a37a00;
+  --red: #ff4b4b;
+  --purple: #ce82ff;
+  --purple-pale: #f9f0ff;
+  --ink: #3c3c3c;
+  --grey: #afafaf;
+  --line: #e5e5e5;
 }
 
-header h1 {
+* { box-sizing: border-box; }
+
+body {
+  width: 320px;
   margin: 0;
-  font-size: 16px;
-  color: #4a6cf7;
+  padding: 16px;
+  font-family: "Nunito", "Quicksand", "Segoe UI Variable", system-ui,
+    -apple-system, sans-serif;
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+}
+
+.sprite { display: none; }
+
+/* --- Header ------------------------------------------------------- */
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 14px;
+}
+
+#mascot { flex: none; width: 48px; height: 48px; }
+
+h1 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--green);
+  line-height: 1.1;
 }
 
 .subtitle {
-  margin: 2px 0 10px;
+  margin: 1px 0 0;
   font-size: 11px;
-  color: #6b6f8a;
+  font-weight: 700;
+  color: var(--grey);
 }
 
-/* --- Power toggle ------------------------------------------------ */
+/* --- Power -------------------------------------------------------- */
 
 #toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px;
-  border-radius: 8px;
-  background: #eef1ff;
-  border: 1px solid #dfe4ff;
+  padding: 13px 15px;
+  border-radius: 16px;
+  border: 2px solid var(--green);
+  background: var(--green-pale);
+}
+
+#toggle-row.off {
+  border-color: var(--line);
+  background: #f7f7f7;
 }
 
 #toggle-state {
-  font-size: 13px;
-  font-weight: 600;
-  color: #2b7a4b;
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--green-dark);
 }
 
-#toggle-state.off {
-  color: #b3541e;
-}
+#toggle-row.off #toggle-state { color: var(--grey); }
 
-#toggle-row .hint {
+#toggle-hint {
   margin: 2px 0 0;
-  font-size: 10px;
-  color: #6b6f8a;
-  line-height: 1.4;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--grey);
 }
 
+/* Chunky pressable switch with a solid drop-edge. */
 .switch {
   flex: none;
-  width: 44px;
-  height: 24px;
+  width: 58px;
+  height: 34px;
   padding: 0;
   border: none;
-  border-radius: 12px;
-  background: #b9bed6;
+  border-radius: 999px;
+  background: var(--grey);
+  box-shadow: 0 4px 0 #8e8e8e;
   cursor: pointer;
   position: relative;
   transition: background 0.15s ease;
 }
 
 .switch.on {
-  background: #2b7a4b;
+  background: var(--green);
+  box-shadow: 0 4px 0 var(--green-dark);
 }
+
+.switch:active { transform: translateY(3px); box-shadow: none; }
 
 .switch .knob {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 5px;
+  left: 5px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fff;
-  transition: transform 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.34, 1.6, 0.64, 1);
 }
 
-.switch.on .knob {
-  transform: translateX(20px);
-}
+.switch.on .knob { transform: translateX(24px); }
+.switch:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
 
-.switch:focus-visible {
-  outline: 2px solid #4a6cf7;
-  outline-offset: 2px;
-}
+/* --- Categories --------------------------------------------------- */
 
-/* --- Categories -------------------------------------------------- */
+#categories { margin-top: 16px; }
 
-#categories {
-  margin-top: 10px;
-}
-
-#categories h2 {
-  margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #6b6f8a;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-#categories label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0 7px;
-  align-items: baseline;
-  padding: 3px 0;
-  cursor: pointer;
+h2 {
+  margin: 0 0 9px;
   font-size: 12px;
+  font-weight: 800;
+  color: var(--grey);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-#categories label span {
-  font-weight: 500;
+.chip { display: block; margin-bottom: 8px; cursor: pointer; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+
+.chip-face {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: 16px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-bottom-width: 4px;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-#categories label em {
-  grid-column: 2;
+.chip input:checked + .chip-face {
+  border-color: var(--blue);
+  background: var(--blue-pale);
+}
+
+.chip:active .chip-face { border-bottom-width: 2px; margin-bottom: 2px; }
+.chip input:focus-visible + .chip-face { outline: 3px solid var(--yellow); }
+
+.chip-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: var(--grey);
+  transition: color 0.15s ease;
+}
+
+.chip input:checked + .chip-face .chip-icon { color: var(--blue-dark); }
+
+.chip-label { font-size: 13.5px; font-weight: 800; line-height: 1.25; }
+
+.chip-label em {
+  display: block;
   font-style: normal;
-  font-size: 10px;
-  color: #9598ad;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--grey);
+  margin-top: 1px;
 }
 
-#categories input {
-  grid-row: span 2;
-  margin: 0;
-  accent-color: #4a6cf7;
+/* A visible tick: the real checkbox is hidden for styling, so without
+   this the chips read as static labels and nobody discovers they toggle. */
+.chip-face::after {
+  content: "";
+  margin-left: auto;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: #fff;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-#categories .not-covered {
-  margin: 7px 0 0;
-  padding: 6px 7px;
-  font-size: 10px;
+.chip input:checked + .chip-face::after {
+  border-color: var(--green);
+  background: var(--green)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='4,13 10,19 20,6'/></svg>")
+    center / 14px no-repeat;
+}
+
+.note {
+  display: flex;
+  gap: 9px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--yellow-ink);
+  background: var(--yellow-pale);
+  border-radius: 14px;
+  border: 2px solid var(--yellow);
+}
+
+.note svg { flex: none; width: 17px; height: 17px; margin-top: 1px; }
+
+/* --- Status ------------------------------------------------------- */
+
+main#status { margin-top: 14px; }
+
+.tally { display: flex; gap: 8px; }
+
+.tally-card {
+  flex: 1;
+  padding: 10px 6px;
+  border-radius: 14px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-bottom-width: 4px;
+  text-align: center;
+}
+
+.tally-card b {
+  display: block;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--blue);
+}
+
+.tally-card.hidden-count b { color: var(--green); }
+
+.tally-card span {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--grey);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.message {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  font-weight: 800;
   line-height: 1.45;
-  color: #8a6a4a;
-  background: #fdf6ee;
-  border-radius: 4px;
+  color: var(--grey);
+  text-align: center;
 }
 
-/* --- Status ------------------------------------------------------ */
+.message.happy { color: var(--green-dark); }
+.message.warn { color: var(--red); }
 
-main#status {
-  font-size: 13px;
-  line-height: 1.5;
-  min-height: 40px;
-  margin-top: 10px;
+.resting {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--grey);
+  text-align: center;
 }
 
-main#status .count-line {
-  margin: 2px 0;
-}
-
-main#status .warning {
-  color: #b3541e;
-}
-
-main#status .detected {
-  color: #4a6cf7;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-/* --- Advanced ---------------------------------------------------- */
+/* --- Grown-up settings -------------------------------------------- */
 
 #advanced {
-  margin-top: 10px;
-  border-top: 1px solid #e6e8f5;
-  padding-top: 8px;
-  font-size: 11px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 2px solid var(--line);
 }
 
 #advanced summary {
   cursor: pointer;
-  color: #6b6f8a;
-  user-select: none;
-}
-
-#advanced label {
-  display: block;
-  margin: 8px 0 3px;
-  color: #6b6f8a;
-}
-
-#advanced select {
-  font: inherit;
-  font-size: 11px;
-  width: 100%;
-  padding: 3px;
-  border: 1px solid #c7cdf0;
-  border-radius: 4px;
-  background: #fff;
-}
-
-#advanced .hint {
-  margin: 5px 0 8px;
-  color: #9598ad;
-  line-height: 1.4;
-}
-
-#advanced button {
-  font: inherit;
   font-size: 12px;
-  padding: 4px 10px;
-  border: 1px solid #c7cdf0;
-  border-radius: 4px;
+  font-weight: 800;
+  color: var(--grey);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  list-style: none;
+}
+
+#advanced summary::-webkit-details-marker { display: none; }
+
+.hint {
+  margin: 10px 0 9px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--grey);
+}
+
+.practice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+.practice-grid label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 12px;
   background: #fff;
-  color: #4a6cf7;
+  border: 2px solid var(--line);
+  font-size: 11.5px;
+  font-weight: 800;
   cursor: pointer;
 }
 
-#advanced button:disabled {
-  opacity: 0.5;
-  cursor: default;
+.practice-grid label:has(input:checked) {
+  border-color: var(--purple);
+  background: var(--purple-pale);
 }
 
-#parity-output {
-  margin-top: 6px;
-  font-size: 11px;
+.practice-grid input { margin: 0; accent-color: var(--purple); }
+.practice-grid svg { flex: none; width: 16px; height: 16px; color: var(--grey); }
+.practice-grid label:has(input:checked) svg { color: var(--purple); }
+
+#tech {
+  margin-top: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.7;
+  color: var(--grey);
 }
 
-#parity-output table {
-  border-collapse: collapse;
+#tech .row { display: flex; justify-content: space-between; gap: 8px; }
+#tech .row b { font-weight: 800; color: var(--ink); }
+
+#advanced button {
+  margin-top: 12px;
   width: 100%;
-  margin-top: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 11px;
+  border: none;
+  border-radius: 14px;
+  background: var(--blue);
+  box-shadow: 0 4px 0 var(--blue-dark);
+  color: #fff;
+  cursor: pointer;
 }
+
+#advanced button:active { transform: translateY(3px); box-shadow: none; }
+#advanced button:disabled { opacity: 0.5; cursor: default; }
+
+#parity-output { margin-top: 9px; font-size: 10px; font-weight: 700; color: var(--grey); }
+#parity-output .row { display: flex; justify-content: space-between; }
+#parity-output .row b { color: var(--ink); }
+#parity-output table { border-collapse: collapse; width: 100%; margin-top: 5px; }
 
 #parity-output th,
 #parity-output td {
   text-align: left;
-  padding: 1px 4px 1px 0;
-  border-bottom: 1px solid #f0f1fa;
+  padding: 2px 4px 2px 0;
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
-}
-
-#parity-output th {
-  color: #6b6f8a;
-  font-weight: 500;
 }

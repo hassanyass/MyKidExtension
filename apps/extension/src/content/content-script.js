@@ -150,7 +150,7 @@
       const image = queue.shift();
       activeWorkers++;
       processImage(image)
-        .catch((err) => console.error("[MyKid] image processing failed:", err))
+        .catch((err) => console.error("[Bubble] image processing failed:", err))
         .finally(() => {
           activeWorkers--;
           pumpQueue();
@@ -226,7 +226,7 @@
       if (applied) {
         stats.protected++;
         console.log(
-          `[MyKid] protection applied — action=${response.analysis.action}, ` +
+          `[Bubble] protection applied — action=${response.analysis.action}, ` +
             `risk=${response.analysis.overallRisk}, ` +
             `regions=${response.analysis.protectionRegions.length}`
         );
@@ -430,7 +430,7 @@
 
       queue.length = 0;
 
-      console.log("[MyKid] navigation detected — rescanning");
+      console.log("[Bubble] navigation detected — rescanning");
       scan(document);
     };
 
@@ -463,7 +463,7 @@
         if (config.enabled) {
           scan(document);
         } else {
-          console.log("[MyKid] disabled — protection removed, analysis stopped");
+          console.log("[Bubble] disabled — protection removed, analysis stopped");
         }
       });
       sendResponse({ ok: true });
@@ -509,7 +509,7 @@
     watchNavigation();
 
     if (!config.enabled) {
-      console.log("[MyKid] disabled — no analysis will run on this page");
+      console.log("[Bubble] disabled — no analysis will run on this page");
       return;
     }
 
@@ -517,13 +517,13 @@
 
     const counts = countVisualElements();
     console.log(
-      `[MyKid] active — ${counts.images} image(s), ${counts.videos} video(s) on load; ` +
+      `[Bubble] active — ${counts.images} image(s), ${counts.videos} video(s) on load; ` +
         `${stats.discovered} observed, analysing as they come into view`
     );
   }
 
   start().catch((err) => {
     // Never let an extension failure take the page down with it.
-    console.error("[MyKid] startup failed:", err);
+    console.error("[Bubble] startup failed:", err);
   });
 })();

@@ -324,7 +324,7 @@ var MyKidVideoProtection = (function () {
         state.unreadable = true;
         stats.unreadable++;
         console.log(
-          "[MyKid] video frame unreadable (cross-origin without CORS) — skipping this element"
+          "[Bubble] video frame unreadable (cross-origin without CORS) — skipping this element"
         );
         return;
       }
@@ -472,7 +472,7 @@ var MyKidVideoProtection = (function () {
     getVisibilityObserver().observe(video);
     scheduleNextSample(state);
 
-    console.log(`[MyKid] watching video (${video.videoWidth}x${video.videoHeight})`);
+    console.log(`[Bubble] watching video (${video.videoWidth}x${video.videoHeight})`);
   }
 
   function unwatch(video) {

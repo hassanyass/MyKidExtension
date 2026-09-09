@@ -35,6 +35,12 @@ var MyKidConfig = (function () {
       // protects the whole image.
       gore: true,
       // NSFW — nudity and sexual content. Scene-level.
+      //
+      // Deliberately NOT exposed as a switch in the popup, and forced on
+      // in fromOverrides(). Two reasons: it is not a protection a parent
+      // would sensibly turn off, and the label does not belong in a panel
+      // a child may open. The key stays here so the engine still reads it
+      // through the normal path rather than special-casing the category.
       sexual: true,
       // knife / scissors, via object detection. Region-level, so only the
       // object is blurred. Costs ~4x the scene classifier.
@@ -143,7 +149,13 @@ var MyKidConfig = (function () {
     return {
       ...DEFAULTS,
       enabled: sourceOverrides?.enabled ?? DEFAULTS.enabled,
-      categories: { ...DEFAULTS.categories, ...(sourceOverrides?.categories ?? {}) },
+      categories: {
+        ...DEFAULTS.categories,
+        ...(sourceOverrides?.categories ?? {}),
+        // Always on, whatever is stored — including a `false` left behind
+        // by an earlier build that did expose the switch.
+        sexual: true,
+      },
       detection: { ...DEFAULTS.detection, ...(sourceOverrides?.detection ?? {}) },
       debug: { ...DEFAULTS.debug, ...(sourceOverrides?.debug ?? {}) },
     };
@@ -158,7 +170,7 @@ var MyKidConfig = (function () {
       // saw the setting. Silent fallbacks hide exactly this class of bug
       // (SKILL.md rule 4).
       console.warn(
-        "[MyKid] chrome.storage unavailable in this context — using defaults. " +
+        "[Bubble] chrome.storage unavailable in this context — using defaults. " +
           "Config must be passed in explicitly here."
       );
       overrides = {};
@@ -169,7 +181,7 @@ var MyKidConfig = (function () {
       const stored = await chrome.storage.local.get("mykidConfig");
       overrides = stored.mykidConfig ?? {};
     } catch (err) {
-      console.warn("[MyKid] could not read stored config:", err);
+      console.warn("[Bubble] could not read stored config:", err);
       overrides = {};
     }
     return get();
