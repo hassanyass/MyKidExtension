@@ -83,6 +83,10 @@ MYKID_VIDEO_INFERENCE_FPS=10
 | Weapon detection (firearms) | ⏸️ Blocked — needs an evaluation set |
 | Phase 13-14 — Parity, privacy audit, limitations | ✅ Done |
 
+**Start here:** [docs/13-technical-report.md](docs/13-technical-report.md) —
+what the project is and how it was built, explained in plain terms first and
+then technically.
+
 See [docs/11-remaining-implementation-plan.md](docs/11-remaining-implementation-plan.md) for the phase-by-phase breakdown, and
 [docs/12-privacy-and-limitations.md](docs/12-privacy-and-limitations.md) for the privacy audit and known limitations.
 
