@@ -258,9 +258,36 @@ var MyKidVideoProtection = (function () {
   }
 
   /**
+   * Drop protection once it has gone unconfirmed for long enough.
+   *
+   * Temporal persistence keeps blur up briefly after the last harmful
+   * frame, so a single missed detection doesn't flash content into view
+   * (SKILL.md §17). Expiry is a question about *elapsed time*, so it must
+   * not be driven by the render loop: requestAnimationFrame stops
+   * completely when a page isn't painting (background tab, occluded
+   * window), which would strand protection indefinitely. setTimeout is
+   * throttled in the background but still fires, so the sampling loop
+   * checks this too.
+   *
+   * @returns {boolean} whether protection is still standing
+   */
+  function expireIfStale(state) {
+    if (state.overlays.length === 0) return false;
+
+    if (performance.now() > state.protectedUntil) {
+      clearOverlays(state);
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Overlays follow the video as the player resizes — theater mode,
    * fullscreen, window resize, or a Shorts feed scrolling. Runs only while
    * something is actually protected, and stops itself otherwise.
+   *
+   * Repositioning genuinely only matters while painting, so this loop is
+   * the right home for it — and the wrong home for expiry.
    */
   function ensureRepositionLoop() {
     if (rafHandle !== null) return;
@@ -269,16 +296,7 @@ var MyKidVideoProtection = (function () {
       let anyActive = false;
 
       for (const state of videoStates.values()) {
-        if (state.overlays.length === 0) continue;
-
-        // Temporal persistence: drop protection only after it has gone
-        // unconfirmed for a while, so a single missed frame doesn't flash
-        // content into view (SKILL.md §17).
-        if (performance.now() > state.protectedUntil) {
-          clearOverlays(state);
-          continue;
-        }
-
+        if (!expireIfStale(state)) continue;
         anyActive = true;
         reposition(state);
       }
@@ -375,6 +393,12 @@ var MyKidVideoProtection = (function () {
         unwatch(state.video);
         return;
       }
+
+      // Expire here as well as in the render loop: this timer keeps
+      // running when the page isn't painting, and stale blur sitting over
+      // changed content is exactly what persistence must not cause.
+      expireIfStale(state);
+
       await sampleFrame(state);
       scheduleNextSample(state);
     }, interval);

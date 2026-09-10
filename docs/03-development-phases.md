@@ -35,7 +35,6 @@ graph TD
     style J fill:#6c5ce7,color:#fff
 ```
 
----
 
 ## Technology Stack
 

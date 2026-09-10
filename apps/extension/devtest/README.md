@@ -36,3 +36,25 @@ protection spawning another overlay. Harmless with the 1px stub used here,
 but a real protected render (up to 800px) clears the size floor and feeds
 straight back in, flooding the two inference slots with the extension's own
 overlays and starving real images.
+
+## video-check.html
+
+Runs the real `video-protection.js` against a genuinely playing `<video>`.
+The video is a canvas `captureStream()`, so frames are same-origin and
+readable — the same situation as YouTube, where the page supplies the bytes
+itself. The page also fakes a player container with controls at `z-index: 30`,
+so overlay layering can be checked.
+
+Inline the scripts first (as for `live-rescan.html`), then press "run checks".
+
+Ten checks: discovery, frame capture, that the captured frame is a real
+readable JPEG, canvas not tainted, overlay appears when flagged, overlay
+positioned inside the video box, blur below the player controls, temporal
+persistence holding, persistence expiring, and paused video not being
+sampled.
+
+**Found by this harness:** protection expiry was driven by
+`requestAnimationFrame`. Expiry is a question about elapsed *time*, and rAF
+stops entirely when a page isn't painting (background tab, occluded window),
+which stranded blur indefinitely. Expiry now also runs from the sampling
+timer, which throttles in the background but keeps firing.

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fuzzy — video protection check</title>
+    <style>
+      body { font: 14px system-ui; margin: 0; padding: 16px; background: #fafafa; }
+      h1 { font-size: 16px; margin: 0 0 4px; }
+      p.lede { margin: 0 0 12px; color: #666; font-size: 12px; max-width: 70ch; }
+      #controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #ccc;
+               background: #fff; cursor: pointer; }
+      button.on { background: #dcfce7; border-color: #4ade80; }
+      #results { font-family: ui-monospace, monospace; font-size: 12px; background: #fff;
+                 border: 1px solid #ddd; border-radius: 8px; padding: 10px;
+                 white-space: pre; margin-bottom: 12px; min-height: 150px; }
+      .pass { color: #15803d; } .fail { color: #b91c1c; }
+      /* Mimics a real player: a positioned container with controls layered
+         over the video, which is what the overlay has to sit between. */
+      #player { position: relative; width: 480px; background: #000; }
+      #player video { display: block; width: 480px; height: 270px; }
+      #fake-controls { position: absolute; left: 0; right: 0; bottom: 0; height: 34px;
+                       background: rgba(0,0,0,.65); color: #fff; font-size: 12px;
+                       display: flex; align-items: center; padding: 0 10px; z-index: 30; }
+    </style>
+  </head>
+  <body>
+    <h1>Fuzzy — video protection check</h1>
+    <p class="lede">
+      Runs the real <code>video-protection.js</code> against a genuinely playing
+      <code>&lt;video&gt;</code>. The video is a canvas stream, so frames are
+      same-origin and readable — the same situation as YouTube, where the page
+      supplies the bytes itself. The stub reports a harmful region whenever
+      "flag frames" is on.
+    </p>
+
+    <div id="controls">
+      <button id="flag" type="button">flag frames = OFF</button>
+      <button id="pause" type="button">pause video</button>
+      <button id="run" type="button">run checks</button>
+    </div>
+
+    <div id="results">press "run checks"</div>
+
+    <div id="player">
+      <video id="v" muted playsinline></video>
+      <div id="fake-controls">▶ fake player controls (must stay visible)</div>
+    </div>
+
+    <script>
+      // ---- A real, readable, playing video ---------------------------
+      const paint = document.createElement("canvas");
+      paint.width = 480; paint.height = 270;
+      const pctx = paint.getContext("2d");
+      let tick = 0;
+      setInterval(() => {
+        tick++;
+        pctx.fillStyle = `hsl(${tick * 3 % 360}, 70%, 55%)`;
+        pctx.fillRect(0, 0, 480, 270);
+        pctx.fillStyle = "#fff";
+        pctx.font = "bold 40px system-ui";
+        pctx.fillText("frame " + tick, 20, 150);
+      }, 40);
+
+      const video = document.getElementById("v");
+      video.srcObject = paint.captureStream(25);
+      video.play();
+
+      // ---- Stubbed extension APIs ------------------------------------
+      let flagFrames = false;
+      let analyseCalls = 0;
+
+      const FAKE_PROTECTED =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+      window.chrome = {
+        storage: { local: {
+          get: (k, cb) => {
+            const r = { mykidConfig: { enabled: true, categories: { gore: true, weapons: true } } };
+            return cb ? cb(r) : Promise.resolve(r);
+          },
+          set: (v, cb) => (cb ? cb() : Promise.resolve()),
+        }},
+        runtime: {
+          lastError: null,
+          onMessage: { addListener: () => {} },
+          sendMessage: async (msg) => {
+            if (msg.type !== "MYKID_ANALYSE_IMAGE") return { ok: false };
+            analyseCalls++;
+            // Records what the content side actually captured, so the test
+            // can prove a real frame was read rather than a blank canvas.
+            lastFrameDataUrl = msg.imageUrl;
+            return {
+              ok: true,
+              analysis: {
+                detections: [],
+                overallRisk: flagFrames ? "medium" : "low",
+                action: flagFrames ? "blur_region" : "allow",
+                protectionRegions: flagFrames
+                  ? [{ bbox: { x: 40, y: 30, width: 200, height: 120 }, mode: "gaussian" }]
+                  : [],
+              },
+              protectedImageUrl: flagFrames ? FAKE_PROTECTED : null,
+              detectedLabels: [], harmfulLabels: ["knife", "scissors"],
+              activeCategories: { gore: true, weapons: true },
+              sceneScores: { gore: 0.01, sexual: 0.01, safe: 0.98 },
+              sceneFlagged: false, objectDetectionRan: true,
+              timings: { sceneMs: 1, inferMs: 1, renderMs: 1 },
+            };
+          },
+        },
+      };
+      let lastFrameDataUrl = null;
+
+      document.getElementById("flag").addEventListener("click", (e) => {
+        flagFrames = !flagFrames;
+        e.target.textContent = "flag frames = " + (flagFrames ? "ON" : "OFF");
+        e.target.classList.toggle("on", flagFrames);
+      });
+      document.getElementById("pause").addEventListener("click", (e) => {
+        if (video.paused) { video.play(); e.target.textContent = "pause video"; }
+        else { video.pause(); e.target.textContent = "resume video"; }
+      });
+
+      // ---- Checks -----------------------------------------------------
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const out = document.getElementById("results");
+      const lines = [];
+      function log(ok, label, detail) {
+        lines.push((ok ? "PASS  " : "FAIL  ") + label + (detail ? "   [" + detail + "]" : ""));
+        out.innerHTML = lines
+          .map((l) => `<span class="${l.startsWith("PASS") ? "pass" : "fail"}">${l}</span>`)
+          .join("\n");
+      }
+
+      const overlays = () => document.querySelectorAll(".mykid-video-overlay");
+
+      document.getElementById("run").addEventListener("click", async () => {
+        lines.length = 0;
+        const config = await MyKidConfig.load();
+
+        // 1. Discovery
+        MyKidVideoProtection.watch(video, config);
+        await wait(300);
+        let s = MyKidVideoProtection.getStats();
+        log(s.watching === 1, "video is discovered and watched", "watching=" + s.watching);
+
+        // 2. Frame capture from a live video
+        const before = analyseCalls;
+        await wait(1600);
+        s = MyKidVideoProtection.getStats();
+        log(analyseCalls > before, "frames are captured and sent",
+            (analyseCalls - before) + " in 1.6s @2fps");
+        log(!!lastFrameDataUrl && lastFrameDataUrl.startsWith("data:image/jpeg"),
+            "captured frame is a real readable JPEG",
+            lastFrameDataUrl ? (lastFrameDataUrl.length / 1024).toFixed(1) + "KB" : "none");
+        log(s.unreadable === 0, "canvas is not tainted", "unreadable=" + s.unreadable);
+
+        // 3. Protection appears
+        flagFrames = true;
+        document.getElementById("flag").textContent = "flag frames = ON";
+        document.getElementById("flag").classList.add("on");
+        await wait(1600);
+        log(overlays().length > 0, "overlay appears when a frame is flagged",
+            overlays().length + " overlay(s)");
+
+        // 4. Positioned over the video, not elsewhere
+        if (overlays().length) {
+          const o = overlays()[0].getBoundingClientRect();
+          const v = video.getBoundingClientRect();
+          const inside = o.left >= v.left - 2 && o.top >= v.top - 2 &&
+                         o.right <= v.right + 2 && o.bottom <= v.bottom + 2 &&
+                         o.width > 0 && o.height > 0;
+          log(inside, "overlay sits within the video box",
+              `${Math.round(o.width)}x${Math.round(o.height)} at +${Math.round(o.left - v.left)},+${Math.round(o.top - v.top)}`);
+        } else {
+          log(false, "overlay sits within the video box", "no overlay");
+        }
+
+        // 5. Player controls stay above the blur
+        const layer = document.querySelector(".mykid-video-layer");
+        const layerZ = layer ? +getComputedStyle(layer).zIndex : NaN;
+        const ctrlZ = +getComputedStyle(document.getElementById("fake-controls")).zIndex;
+        log(layerZ < ctrlZ, "blur sits below the player controls",
+            `layer z=${layerZ} vs controls z=${ctrlZ}`);
+
+        // 6. Temporal persistence: blur outlives a single clean frame
+        flagFrames = false;
+        document.getElementById("flag").textContent = "flag frames = OFF";
+        document.getElementById("flag").classList.remove("on");
+        await wait(900);
+        log(overlays().length > 0, "blur persists briefly after frames come back clean",
+            "still " + overlays().length + " after 0.9s");
+
+        // 7. ...but does expire
+        await wait(2000);
+        log(overlays().length === 0, "blur expires once persistence elapses",
+            overlays().length + " after 2.9s total");
+
+        // 8. Paused video is not sampled
+        video.pause();
+        const beforePause = analyseCalls;
+        await wait(1500);
+        log(analyseCalls === beforePause, "paused video is not sampled",
+            (analyseCalls - beforePause) + " calls while paused");
+        video.play();
+
+        lines.push("");
+        lines.push(lines.filter((l) => l.startsWith("FAIL")).length === 0
+          ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED");
+        out.innerHTML = lines
+          .map((l) => `<span class="${l.startsWith("FAIL") || l.includes("FAILED") ? "fail" : "pass"}">${l}</span>`)
+          .join("\n");
+      });
+    </script>
+
+    <script src="../src/shared/config.js"></script>
+    <script src="../src/inference/risk.js"></script>
+    <script src="../src/content/video-protection.js"></script>
+  </body>
+</html>
