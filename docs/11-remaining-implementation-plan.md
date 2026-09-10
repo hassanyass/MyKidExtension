@@ -18,7 +18,7 @@
 > | 10b-iii — protection on page images | ✅ **yes** (2026-09-08 — people blurred on a real page) |
 > | 10c — analysis on scroll / rescan | ✅ implied: images are analysed as they enter the viewport, and the rescan path is what made protection appear |
 > | 10c — infinite scroll + SPA re-scan | ⚠️ not specifically exercised |
-> | 11a / 11b / 11c — video | ❌ **not yet confirmed** — video runs through the same analysis path, so the config bug blocked it too; untested since the fix |
+> | 11a / 11b / 11c — video | ⚠️ **logic verified, real sites not yet** (2026-09-10) — `devtest/video-check.html` runs the real module against a live `<video>`: discovery, frame capture, overlay placement, layering below player controls, persistence and expiry all pass. Not yet observed on YouTube itself. |
 >
 > Anything not ✅ is speculative until tested. Don't build further on it without checking.
 
