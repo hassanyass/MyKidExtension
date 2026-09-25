@@ -70,13 +70,24 @@ async function currentConfig() {
  */
 const KEEP_ALIVE_ALARM = "mykid-keep-alive";
 
+/**
+ * Guarded because `chrome.alarms` must never be assumed present at the top
+ * level: a permission just added to an already-loaded unpacked extension
+ * can take a reload cycle to actually attach, and an unguarded reference to
+ * it here would throw during initial script evaluation — which aborts
+ * service worker registration entirely (Chrome's "Status code: 15") and
+ * takes the real message-relay logic below down with it. A missing alarms
+ * API should only mean no keep-alive, never a dead extension.
+ */
 function scheduleKeepAlive() {
-  chrome.alarms.create(KEEP_ALIVE_ALARM, { periodInMinutes: 1 });
+  chrome.alarms?.create(KEEP_ALIVE_ALARM, { periodInMinutes: 1 });
 }
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === KEEP_ALIVE_ALARM) updateBadge(); // any real API call keeps the worker alive
-});
+if (chrome.alarms) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === KEEP_ALIVE_ALARM) updateBadge(); // any real API call keeps the worker alive
+  });
+}
 
 chrome.runtime.onInstalled.addListener((details) => {
   console.log(`[Fuzzy] service worker installed (reason: ${details.reason})`);
@@ -93,9 +104,11 @@ chrome.runtime.onStartup.addListener(() => {
 // restarts once set, but not if the alarm was somehow lost (e.g. the user
 // cleared extension data) — this re-arms it opportunistically whenever the
 // worker wakes up for any other reason.
-chrome.alarms.get(KEEP_ALIVE_ALARM, (existing) => {
-  if (!existing) scheduleKeepAlive();
-});
+if (chrome.alarms) {
+  chrome.alarms.get(KEEP_ALIVE_ALARM, (existing) => {
+    if (!existing) scheduleKeepAlive();
+  });
+}
 
 // The popup writes config; the badge follows it rather than being set in
 // two places that could disagree.
