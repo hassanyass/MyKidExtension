@@ -55,12 +55,47 @@ async function currentConfig() {
   return { enabled: overrides.enabled ?? true };
 }
 
+/**
+ * Keep-alive for a known Chromium bug (not specific to Fuzzy): after a
+ * service worker sits idle for an extended stretch — overnight, or several
+ * days of the browser being left open — some extensions' entire background
+ * context wedges permanently. Not just asleep: nothing wakes it, including
+ * clicks on the toolbar icon, so the popup stops opening at all until the
+ * extension is manually reloaded. See:
+ * https://issues.chromium.org/issues/40733525
+ *
+ * `chrome.alarms` is the one thing guaranteed to rouse a service worker on
+ * its own schedule, so pinging one every minute keeps this worker from
+ * ever going dormant long enough to hit that wedged state.
+ */
+const KEEP_ALIVE_ALARM = "mykid-keep-alive";
+
+function scheduleKeepAlive() {
+  chrome.alarms.create(KEEP_ALIVE_ALARM, { periodInMinutes: 1 });
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === KEEP_ALIVE_ALARM) updateBadge(); // any real API call keeps the worker alive
+});
+
 chrome.runtime.onInstalled.addListener((details) => {
   console.log(`[Fuzzy] service worker installed (reason: ${details.reason})`);
+  scheduleKeepAlive();
   updateBadge();
 });
 
-chrome.runtime.onStartup.addListener(updateBadge);
+chrome.runtime.onStartup.addListener(() => {
+  scheduleKeepAlive();
+  updateBadge();
+});
+
+// Alarms created with chrome.alarms.create() persist across service-worker
+// restarts once set, but not if the alarm was somehow lost (e.g. the user
+// cleared extension data) — this re-arms it opportunistically whenever the
+// worker wakes up for any other reason.
+chrome.alarms.get(KEEP_ALIVE_ALARM, (existing) => {
+  if (!existing) scheduleKeepAlive();
+});
 
 // The popup writes config; the badge follows it rather than being set in
 // two places that could disagree.
